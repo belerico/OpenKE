@@ -1,8 +1,13 @@
 import torch
+import numpy
 import gensim
+import string
+import itertools
+import pandas as pd
 import torch.nn as nn
 import torch.nn.functional as F
 from .Model import Model
+from collections import Counter
 
 
 class TransW(Model):
@@ -15,10 +20,12 @@ class TransW(Model):
         norm_flag=True,
         margin=None,
         epsilon=None,
-        word_embeddings_path="",
-        unique_head_terms=100,
-        unique_tail_terms=100,
-        unique_rel_terms=100
+        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+        entity2id_path="benchmarks/FB15K237/entity2id.txt",
+        relation2id_path="benchmarks/FB15K237/relation2id.txt",
+        word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
+        unique_ent_terms=12025,
+        unique_rel_terms=446,
     ):
         super(TransW, self).__init__(ent_tot, rel_tot)
 
@@ -28,25 +35,43 @@ class TransW(Model):
         self.norm_flag = norm_flag
         self.p_norm = p_norm
 
+        self.whitespace_trans = str.maketrans(
+            string.punctuation, " " * len(string.punctuation)
+        )
+
         self.ent_embeddings = nn.Embedding(self.ent_tot, self.dim)
         self.rel_embeddings = nn.Embedding(self.rel_tot, self.dim)
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        # model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
-        # self.word_embeddings = nn.Embedding.from_pretrained(
-        #     torch.FloatTensor(model.wv), freeze=True
-        # )
-        # del model
-        self.Wh = nn.Embedding(unique_head_terms, dim)
-        self.Wt = nn.Embedding(unique_tail_terms, dim)
-        self.Wr = nn.Embedding(unique_rel_terms, dim)
+        model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
+        self.word_embeddings = nn.Embedding.from_pretrained(
+            torch.FloatTensor(model.wv), freeze=True
+        )
+        del model
+
+        self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
+        self.entity2id = pd.DataFrame(
+            data=numpy.loadtxt(
+                entity2id_path, delimiter="\t", skiprows=1, dtype=object
+            ),
+            columns=["entity", "id"],
+        )
+        self.relation2id = pd.DataFrame(
+            data=numpy.loadtxt(
+                relation2id_path, delimiter="\t", skiprows=1, dtype=object
+            ),
+            columns=["relation", "id"],
+        )
+        self.unique_ent_terms = unique_ent_terms
+        self.unique_rel_terms = unique_rel_terms
+        self.We = nn.Embedding(self.unique_ent_terms, dim)
+        self.Wr = nn.Embedding(self.unique_rel_terms, dim)
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
             nn.init.xavier_uniform_(self.rel_embeddings.weight.data)
-            nn.init.xavier_uniform_(self.Wh.weight.data)
-            nn.init.xavier_uniform_(self.Wt.weight.data)
+            nn.init.xavier_uniform_(self.We.weight.data)
             nn.init.xavier_uniform_(self.Wr.weight.data)
         else:
             self.embedding_range = nn.Parameter(
@@ -92,7 +117,7 @@ class TransW(Model):
         batch_t = data["batch_t"]
         batch_r = data["batch_r"]
         mode = data["mode"]
-        print(batch_h)
+
         h = self.ent_embeddings(batch_h)
         t = self.ent_embeddings(batch_t)
         r = self.rel_embeddings(batch_r)
