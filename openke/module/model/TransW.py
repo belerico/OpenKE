@@ -12,20 +12,20 @@ from collections import Counter
 
 class TransW(Model):
     def __init__(
-        self,
-        ent_tot,
-        rel_tot,
-        dim=100,
-        p_norm=1,
-        norm_flag=True,
-        margin=None,
-        epsilon=None,
-        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
-        entity2id_path="benchmarks/FB15K237/entity2id.txt",
-        relation2id_path="benchmarks/FB15K237/relation2id.txt",
-        word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
-        unique_ent_terms=12025,
-        unique_rel_terms=446,
+            self,
+            ent_tot,
+            rel_tot,
+            dim=100,
+            p_norm=1,
+            norm_flag=True,
+            margin=None,
+            epsilon=None,
+            entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+            entity2id_path="benchmarks/FB15K237/entity2id.txt",
+            relation2id_path="benchmarks/FB15K237/relation2id.txt",
+            word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
+            unique_ent_terms=12025,
+            unique_rel_terms=446,
     ):
         super(TransW, self).__init__(ent_tot, rel_tot)
 
@@ -41,14 +41,6 @@ class TransW(Model):
 
         self.ent_embeddings = nn.Embedding(self.ent_tot, self.dim)
         self.rel_embeddings = nn.Embedding(self.rel_tot, self.dim)
-
-        if word_embeddings_path is None:
-            raise Exception("The path for the word embeddings must be set")
-        model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
-        self.word_embeddings = nn.Embedding.from_pretrained(
-            torch.FloatTensor(model.wv), freeze=True
-        )
-        del model
 
         self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
         self.entity2id = pd.DataFrame(
@@ -67,6 +59,15 @@ class TransW(Model):
         self.unique_rel_terms = unique_rel_terms
         self.We = nn.Embedding(self.unique_ent_terms, dim)
         self.Wr = nn.Embedding(self.unique_rel_terms, dim)
+
+        if word_embeddings_path is None:
+            raise Exception("The path for the word embeddings must be set")
+        model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
+        self.word_embeddings = nn.Embedding.from_pretrained(
+            torch.FloatTensor(model.wv), freeze=True
+        )
+
+        del model
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
@@ -96,6 +97,17 @@ class TransW(Model):
         else:
             self.margin_flag = False
 
+    def get_entity_terms(self, entity_id):
+        mid_id = self.entity2id[self.entity2id['id'] == str(entity_id)]['entity'].values[0]
+        entities = self.entity2wiki[self.entity2wiki.index == mid_id]['label'].values[0]
+        return entities
+
+    def get_relation_terms(self, relation_id):
+        relations_raw = self.relation2id[self.relation2id['id'] == str(relation_id)][
+            'relation'].values[0]
+        relations_term = relations_raw.lower().translate(self.whitespace_trans).split()
+        return relations_term
+
     def _calc(self, h, t, r, mode):
         if self.norm_flag:
             h = F.normalize(h, 2, -1)
@@ -118,9 +130,28 @@ class TransW(Model):
         batch_r = data["batch_r"]
         mode = data["mode"]
 
-        h = self.ent_embeddings(batch_h)
-        t = self.ent_embeddings(batch_t)
-        r = self.rel_embeddings(batch_r)
+        # SUM W_i
+        h = torch.Tensor()
+        t = torch.Tensor()
+        r = torch.Tensor()
+
+        for term_hi in self.get_entity_terms(batch_h):
+            w_hi = self.We(term_hi)
+            h_i = self.word_embeddings(term_hi)
+
+            h = h + torch.mul(h_i, w_hi)
+
+        for term_ti in self.get_entity_terms(batch_t):
+            w_ti = self.We(term_ti)
+            h_t = self.word_embeddings(term_ti)
+
+            t = t + torch.mul(h_t, w_ti)
+
+        for term_ri in self.get_relation_terms(batch_r):
+            w_ri = self.Wr(term_ri)
+            h_r = self.word_embeddings(w_ri)
+            r = r + torch.mul(h_r, w_ri)
+
         score = self._calc(h, t, r, mode)
         if self.margin_flag:
             return self.margin - score
@@ -134,6 +165,7 @@ class TransW(Model):
         h = self.ent_embeddings(batch_h)
         t = self.ent_embeddings(batch_t)
         r = self.rel_embeddings(batch_r)
+
         regul = (torch.mean(h ** 2) + torch.mean(t ** 2) + torch.mean(r ** 2)) / 3
         return regul
 
@@ -144,4 +176,3 @@ class TransW(Model):
             return score.cpu().data.numpy()
         else:
             return score.cpu().data.numpy()
-
