@@ -7,6 +7,7 @@ from .TransE import TransE
 from .TransD import TransD
 from .TransR import TransR
 from .TransH import TransH
+from .TransW import TransW
 from .DistMult import DistMult
 from .ComplEx import ComplEx
 from .RESCAL import RESCAL
@@ -20,6 +21,7 @@ __all__ = [
     'TransD',
     'TransR',
     'TransH',
+    'TransW',
     'DistMult',
     'ComplEx',
     'RESCAL',
