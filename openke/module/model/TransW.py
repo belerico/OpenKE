@@ -10,8 +10,6 @@ import torch.nn.functional as F
 from .Model import Model
 from collections import Counter
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 class TransW(Model):
     def __init__(
@@ -61,8 +59,8 @@ class TransW(Model):
         )
         # self.unique_ent_terms = unique_ent_terms
         # self.unique_rel_terms = unique_rel_terms
-        self.We = nn.Embedding(len(self.entity_mapping), dim).to(device)
-        self.Wr = nn.Embedding(len(self.relation_mapping), dim).to(device)
+        self.We = nn.Embedding(len(self.entity_mapping), dim)
+        self.Wr = nn.Embedding(len(self.relation_mapping), dim)
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
@@ -143,6 +141,8 @@ class TransW(Model):
         batches_t = data["batch_t"]
         batches_r = data["batch_r"]
         n_samples = len(batches_h)
+
+        device = batches_h.device
 
         mode = data["mode"]
         scores = torch.zeros([n_samples])
