@@ -43,7 +43,9 @@ class TransW(Model):
         )
 
         self.ent_embeddings = nn.Embedding(self.ent_tot, self.dim)
+        self.ent_embeddings.weight.requires_grad = False
         self.rel_embeddings = nn.Embedding(self.rel_tot, self.dim)
+        self.rel_embeddings.weight.requires_grad = False
 
         self.entity_mapping = json.load(open(entity_mapping, "rb"))
         self.relation_mapping = json.load(open(relation_mapping, "rb"))
@@ -64,15 +66,10 @@ class TransW(Model):
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
-        self.word_embeddings = nn.Embedding.from_pretrained(
-            torch.FloatTensor(model.vectors), freeze=True,
-        )
+        self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
         self.word2index = dict(
             zip(model.index2word, list(range(len(model.index2word))))
         )
-
-        del model
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
@@ -91,6 +88,16 @@ class TransW(Model):
             )
             nn.init.uniform_(
                 tensor=self.rel_embeddings.weight.data,
+                a=-self.embedding_range.item(),
+                b=self.embedding_range.item(),
+            )
+            nn.init.uniform_(
+                tensor=self.We.weight.data,
+                a=-self.embedding_range.item(),
+                b=self.embedding_range.item(),
+            )
+            nn.init.uniform_(
+                tensor=self.Wr.weight.data,
                 a=-self.embedding_range.item(),
                 b=self.embedding_range.item(),
             )
@@ -159,59 +166,49 @@ class TransW(Model):
             r = torch.zeros([1, self.dim]).to(device)
 
             for term_hi in self.get_entity_terms(batch_h):
-                term_id = torch.LongTensor(
-                    [self.word2index[term_hi] if term_hi in self.word2index else 0]
-                )
-                # TODO: a entity terms mapping is needed
-                w_hi = self.We(
-                    torch.LongTensor(
-                        [
-                            self.entity_mapping[term_hi]
-                            if term_hi in self.entity_mapping
-                            else 0
-                        ]
-                    ).to(device)
-                )
-                h_i = self.word_embeddings(term_id.to(device))
-
-                h = h + torch.mul(h_i, w_hi)
+                try:
+                    w_hi = self.We(
+                        torch.LongTensor(
+                            [
+                                self.entity_mapping[term_hi]
+                            ]
+                        ).to(device)
+                    )
+                    h_i = self.word_embeddings.wv[term_hi]
+                    h = h + torch.mul(h_i, w_hi)
+                except KeyError:
+                    continue
+            self.ent_embeddings.weight[batch_h] = h
 
             for term_ti in self.get_entity_terms(batch_t):
-                term_id = torch.LongTensor(
-                    [self.word2index[term_ti] if term_ti in self.word2index else 0]
-                )
-                w_ti = self.We(
-                    torch.LongTensor(
-                        [
-                            self.entity_mapping[term_ti]
-                            if term_ti in self.entity_mapping
-                            else 0
-                        ]
-                    ).to(device)
-                )
-                h_t = self.word_embeddings(term_id.to(device))
-
-                t = t + torch.mul(h_t, w_ti)
+                try:
+                    w_ti = self.We(
+                        torch.LongTensor(
+                            [
+                                self.entity_mapping[term_ti]
+                            ]
+                        ).to(device)
+                    )
+                    h_t = self.word_embeddings.wv[term_ti]
+                    t = t + torch.mul(h_t, w_ti)
+                except KeyError:
+                    continue
+            self.ent_embeddings.weight[batch_h] = t
 
             for term_ri in self.get_relation_terms(batch_r):
-                term_id = torch.LongTensor(
-                    [self.word2index[term_ri] if term_ri in self.word2index else 0]
-                )
                 try:
-                    # TODO: a relation terms mapping is needed
                     w_ri = self.Wr(
                         torch.LongTensor(
                             [
                                 self.relation_mapping[term_ri]
-                                if term_ri in self.relation_mapping
-                                else 0
                             ]
                         ).to(device)
                     )
-                    h_r = self.word_embeddings(term_id.to(device))
+                    h_r = self.word_embeddings.wv[term_ri]
                     r = r + torch.mul(h_r, w_ri)
-                except:
-                    print("Not found")
+                except KeyError:
+                    continue
+            self.rel_embeddings.weight[batch_r] = r
 
             score = self._calc(h, t, r, mode)
             if self.margin_flag:
