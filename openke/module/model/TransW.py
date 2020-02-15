@@ -10,6 +10,8 @@ import torch.nn.functional as F
 from .Model import Model
 from collections import Counter
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class TransW(Model):
     def __init__(
@@ -50,21 +52,17 @@ class TransW(Model):
 
         self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
         self.entity2id = pd.DataFrame(
-            data=numpy.loadtxt(
-                entity2id_path, delimiter="\t", skiprows=1, dtype=object
-            ),
+            data=numpy.loadtxt(entity2id_path, delimiter="\t", skiprows=1, dtype=str),
             columns=["entity", "id"],
         )
         self.relation2id = pd.DataFrame(
-            data=numpy.loadtxt(
-                relation2id_path, delimiter="\t", skiprows=1, dtype=object
-            ),
+            data=numpy.loadtxt(relation2id_path, delimiter="\t", skiprows=1, dtype=str),
             columns=["relation", "id"],
         )
         # self.unique_ent_terms = unique_ent_terms
         # self.unique_rel_terms = unique_rel_terms
-        self.We = nn.Embedding(len(self.entity_mapping), dim)
-        self.Wr = nn.Embedding(len(self.relation_mapping), dim)
+        self.We = nn.Embedding(len(self.entity_mapping), dim).to(device)
+        self.Wr = nn.Embedding(len(self.relation_mapping), dim).to(device)
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
@@ -109,10 +107,14 @@ class TransW(Model):
             self.margin_flag = False
 
     def get_entity_terms(self, entity_id):
+        # print(entity_id)
         mid_id = self.entity2id[self.entity2id["id"] == str(entity_id)][
             "entity"
         ].values[0]
-        entities = self.entity2wiki[self.entity2wiki.index == mid_id]["label"].values[0]
+        try:
+            entities = self.entity2wiki[["label"]].loc[mid_id].values[0]
+        except KeyError:
+            entities = ""
         return entities.lower().translate(self.whitespace_trans).split()
 
     def get_relation_terms(self, relation_id):
@@ -154,17 +156,19 @@ class TransW(Model):
             batch_r = int(batches_r[i])
 
             # SUM W_i
-            h = torch.zeros([1, self.dim])
-            t = torch.zeros([1, self.dim])
-            r = torch.zeros([1, self.dim])
+            h = torch.zeros([1, self.dim]).to(device)
+            t = torch.zeros([1, self.dim]).to(device)
+            r = torch.zeros([1, self.dim]).to(device)
 
             for term_hi in self.get_entity_terms(batch_h):
                 term_id = torch.LongTensor(
                     [self.word2index[term_hi] if term_hi in self.word2index else 0]
                 )
                 # TODO: a entity terms mapping is needed
-                w_hi = self.We(self.entity_mapping[term_hi])
-                h_i = self.word_embeddings(term_id)
+                w_hi = self.We(
+                    torch.LongTensor([self.entity_mapping[term_hi]]).to(device)
+                )
+                h_i = self.word_embeddings(term_id.to(device))
 
                 h = h + torch.mul(h_i, w_hi)
 
@@ -172,8 +176,10 @@ class TransW(Model):
                 term_id = torch.LongTensor(
                     [self.word2index[term_ti] if term_ti in self.word2index else 0]
                 )
-                w_ti = self.We(self.entity_mapping[term_ti])
-                h_t = self.word_embeddings(term_id)
+                w_ti = self.We(
+                    torch.LongTensor([self.entity_mapping[term_ti]]).to(device)
+                )
+                h_t = self.word_embeddings(term_id.to(device))
 
                 t = t + torch.mul(h_t, w_ti)
 
@@ -183,8 +189,10 @@ class TransW(Model):
                 )
                 try:
                     # TODO: a relation terms mapping is needed
-                    w_ri = self.Wr(self.relation_mapping[term_ri])
-                    h_r = self.word_embeddings(term_id)
+                    w_ri = self.Wr(
+                        torch.LongTensor([self.relation_mapping[term_ri]]).to(device)
+                    )
+                    h_r = self.word_embeddings(term_id.to(device))
                     r = r + torch.mul(h_r, w_ri)
                 except:
                     print("Not found")
