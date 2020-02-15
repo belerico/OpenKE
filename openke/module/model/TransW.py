@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .Model import Model
 from collections import Counter
+from wikipedia2vec import Wikipedia2Vec
 
 
 class TransW(Model):
@@ -26,7 +27,7 @@ class TransW(Model):
         entity2id_path="benchmarks/FB15K237/entity2id.txt",
         relation_mapping="benchmarks/FB15K237/relation_mapping.json",
         relation2id_path="benchmarks/FB15K237/relation2id.txt",
-        word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
+        word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
         # unique_ent_terms=12025,
         # unique_rel_terms=446,
     ):
@@ -66,9 +67,8 @@ class TransW(Model):
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(
-            word_embeddings_path, limit=10000)
-
+        # self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
+        self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
@@ -167,14 +167,11 @@ class TransW(Model):
             for term_hi in self.get_entity_terms(batch_h):
                 try:
                     w_hi = self.We(
-                        torch.LongTensor(
-                            [
-                                self.entity_mapping[term_hi]
-                            ]
-                        ).to(device)
+                        torch.LongTensor([self.entity_mapping[term_hi]]).to(device)
                     )
-                    h_i = torch.FloatTensor(self.word_embeddings.wv[term_hi]).to(device)
-
+                    h_i = torch.FloatTensor(
+                        self.word_embeddings.get_word_vector(term_hi)
+                    ).to(device)
                     h = h + torch.mul(h_i, w_hi)
                 except KeyError:
                     continue
@@ -183,13 +180,11 @@ class TransW(Model):
             for term_ti in self.get_entity_terms(batch_t):
                 try:
                     w_ti = self.We(
-                        torch.LongTensor(
-                            [
-                                self.entity_mapping[term_ti]
-                            ]
-                        ).to(device)
+                        torch.LongTensor([self.entity_mapping[term_ti]]).to(device)
                     )
-                    h_t = torch.FloatTensor(self.word_embeddings.wv[term_ti]).to(device)
+                    h_t = torch.FloatTensor(
+                        self.word_embeddings.get_word_vector(term_ti)
+                    ).to(device)
                     t = t + torch.mul(h_t, w_ti)
                 except KeyError:
                     continue
@@ -198,13 +193,11 @@ class TransW(Model):
             for term_ri in self.get_relation_terms(batch_r):
                 try:
                     w_ri = self.Wr(
-                        torch.LongTensor(
-                            [
-                                self.relation_mapping[term_ri]
-                            ]
-                        ).to(device)
+                        torch.LongTensor([self.relation_mapping[term_ri]]).to(device)
                     )
-                    h_r = torch.FloatTensor(self.word_embeddings.wv[term_ri]).to(device)
+                    h_r = torch.FloatTensor(
+                        self.word_embeddings.get_word_vector(term_ri)
+                    ).to(device)
                     r = r + torch.mul(h_r, w_ri)
                 except KeyError:
                     continue
