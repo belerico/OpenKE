@@ -12,7 +12,6 @@ from collections import Counter
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 class TransW(Model):
     def __init__(
         self,
@@ -67,7 +66,7 @@ class TransW(Model):
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
         model = gensim.models.KeyedVectors.load_word2vec_format(
-            word_embeddings_path, limit=10000
+            word_embeddings_path
         )
         self.word_embeddings = nn.Embedding.from_pretrained(
             torch.FloatTensor(model.vectors), freeze=True,
@@ -166,7 +165,7 @@ class TransW(Model):
                 )
                 # TODO: a entity terms mapping is needed
                 w_hi = self.We(
-                    torch.LongTensor([self.entity_mapping[term_hi]]).to(device)
+                    torch.LongTensor([self.entity_mapping[term_hi] if term_hi in self.entity_mapping else 0]).to(device)
                 )
                 h_i = self.word_embeddings(term_id.to(device))
 
@@ -177,7 +176,7 @@ class TransW(Model):
                     [self.word2index[term_ti] if term_ti in self.word2index else 0]
                 )
                 w_ti = self.We(
-                    torch.LongTensor([self.entity_mapping[term_ti]]).to(device)
+                    torch.LongTensor([self.entity_mapping[term_ti] if term_ti in self.entity_mapping else 0 ]).to(device)
                 )
                 h_t = self.word_embeddings(term_id.to(device))
 
@@ -190,7 +189,7 @@ class TransW(Model):
                 try:
                     # TODO: a relation terms mapping is needed
                     w_ri = self.Wr(
-                        torch.LongTensor([self.relation_mapping[term_ri]]).to(device)
+                        torch.LongTensor([self.relation_mapping[term_ri] if term_ri in self.relation_mapping else 0 ]).to(device)
                     )
                     h_r = self.word_embeddings(term_id.to(device))
                     r = r + torch.mul(h_r, w_ri)
@@ -206,22 +205,22 @@ class TransW(Model):
         return scores
 
 
-def regularization(self, data):
-    batch_h = data["batch_h"]
-    batch_t = data["batch_t"]
-    batch_r = data["batch_r"]
-    h = self.ent_embeddings(batch_h)
-    t = self.ent_embeddings(batch_t)
-    r = self.rel_embeddings(batch_r)
+    def regularization(self, data):
+        batch_h = data["batch_h"]
+        batch_t = data["batch_t"]
+        batch_r = data["batch_r"]
+        h = self.ent_embeddings(batch_h)
+        t = self.ent_embeddings(batch_t)
+        r = self.rel_embeddings(batch_r)
 
-    regul = (torch.mean(h ** 2) + torch.mean(t ** 2) + torch.mean(r ** 2)) / 3
-    return regul
+        regul = (torch.mean(h ** 2) + torch.mean(t ** 2) + torch.mean(r ** 2)) / 3
+        return regul
 
 
-def predict(self, data):
-    score = self.forward(data)
-    if self.margin_flag:
-        score = self.margin - score
-        return score.cpu().data.numpy()
-    else:
-        return score.cpu().data.numpy()
+    def predict(self, data):
+        score = self.forward(data)
+        if self.margin_flag:
+            score = self.margin - score
+            return score.cpu().data.numpy()
+        else:
+            return score.cpu().data.numpy()
