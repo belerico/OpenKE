@@ -66,6 +66,7 @@ class TransW(Model):
         self.word_embeddings = nn.Embedding.from_pretrained(
             torch.FloatTensor(model.vectors), freeze=True,
         )
+        self.word2index = dict(zip(model.index2word, list(range(len(model.index2word)))))
 
         del model
 
@@ -100,7 +101,7 @@ class TransW(Model):
     def get_entity_terms(self, entity_id):
         mid_id = self.entity2id[self.entity2id['id'] == str(entity_id)]['entity'].values[0]
         entities = self.entity2wiki[self.entity2wiki.index == mid_id]['label'].values[0]
-        return entities
+        return entities.split()
 
     def get_relation_terms(self, relation_id):
         relations_raw = self.relation2id[self.relation2id['id'] == str(relation_id)][
@@ -125,54 +126,66 @@ class TransW(Model):
         return score
 
     def forward(self, data):
-        batch_h = data["batch_h"]
-        batch_t = data["batch_t"]
-        batch_r = data["batch_r"]
+        batches_h = data["batch_h"]
+        batches_t = data["batch_t"]
+        batches_r = data["batch_r"]
+        n_samples = len(batches_h)
         mode = data["mode"]
 
-        # SUM W_i
-        h = torch.Tensor()
-        t = torch.Tensor()
-        r = torch.Tensor()
+        for i in range(n_samples):
 
-        for term_hi in self.get_entity_terms(batch_h):
-            w_hi = self.We(term_hi)
-            h_i = self.word_embeddings(term_hi)
+            batch_h = int(batches_h[i])
+            batch_t = int(batches_t[i])
+            batch_r = int(batches_r[i])
 
-            h = h + torch.mul(h_i, w_hi)
+            # SUM W_i
+            h = torch.Tensor()
+            t = torch.Tensor()
+            r = torch.Tensor()
 
-        for term_ti in self.get_entity_terms(batch_t):
-            w_ti = self.We(term_ti)
-            h_t = self.word_embeddings(term_ti)
+            for term_hi in self.get_entity_terms(batch_h):
+                term_id = torch.LongTensor([self.word2index[term_hi] if term_hi in self.word2index
+                                           else 0])
+                w_hi = self.We(term_id)
+                h_i = self.word_embeddings(term_id)
 
-            t = t + torch.mul(h_t, w_ti)
+                h = h + torch.mul(h_i, w_hi)
 
-        for term_ri in self.get_relation_terms(batch_r):
-            w_ri = self.Wr(term_ri)
-            h_r = self.word_embeddings(w_ri)
-            r = r + torch.mul(h_r, w_ri)
+            for term_ti in self.get_entity_terms(batch_t):
+                w_ti = self.We(term_ti)
+                h_t = self.word_embeddings(term_ti)
 
-        score = self._calc(h, t, r, mode)
+                t = t + torch.mul(h_t, w_ti)
+
+            for term_ri in self.get_relation_terms(batch_r):
+                w_ri = self.Wr(term_ri)
+                h_r = self.word_embeddings(w_ri)
+                r = r + torch.mul(h_r, w_ri)
+
+            score = self._calc(h, t, r, mode)
+
         if self.margin_flag:
             return self.margin - score
         else:
             return score
 
-    def regularization(self, data):
-        batch_h = data["batch_h"]
-        batch_t = data["batch_t"]
-        batch_r = data["batch_r"]
-        h = self.ent_embeddings(batch_h)
-        t = self.ent_embeddings(batch_t)
-        r = self.rel_embeddings(batch_r)
 
-        regul = (torch.mean(h ** 2) + torch.mean(t ** 2) + torch.mean(r ** 2)) / 3
-        return regul
+def regularization(self, data):
+    batch_h = data["batch_h"]
+    batch_t = data["batch_t"]
+    batch_r = data["batch_r"]
+    h = self.ent_embeddings(batch_h)
+    t = self.ent_embeddings(batch_t)
+    r = self.rel_embeddings(batch_r)
 
-    def predict(self, data):
-        score = self.forward(data)
-        if self.margin_flag:
-            score = self.margin - score
-            return score.cpu().data.numpy()
-        else:
-            return score.cpu().data.numpy()
+    regul = (torch.mean(h ** 2) + torch.mean(t ** 2) + torch.mean(r ** 2)) / 3
+    return regul
+
+
+def predict(self, data):
+    score = self.forward(data)
+    if self.margin_flag:
+        score = self.margin - score
+        return score.cpu().data.numpy()
+    else:
+        return score.cpu().data.numpy()

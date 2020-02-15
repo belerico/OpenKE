@@ -13,11 +13,12 @@ train_dataloader = TrainDataLoader(
     sampling_mode="normal",
     bern_flag=1,
     filter_flag=1,
+    batch_size=1,
     neg_ent=25,
     neg_rel=0)
 
 # dataloader for test
-#test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
+# test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
 
 # define the model
 transw = TransW(
