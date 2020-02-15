@@ -1,3 +1,4 @@
+import json
 import torch
 import numpy
 import gensim
@@ -20,8 +21,10 @@ class TransW(Model):
         norm_flag=True,
         margin=None,
         epsilon=None,
+        entity_mapping="benchmarks/FB15K237/entity_mapping.json",
         entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
         entity2id_path="benchmarks/FB15K237/entity2id.txt",
+        relation_mapping="benchmarks/FB15K237/relation_mapping.json",
         relation2id_path="benchmarks/FB15K237/relation2id.txt",
         word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
         unique_ent_terms=12025,
@@ -41,6 +44,9 @@ class TransW(Model):
 
         self.ent_embeddings = nn.Embedding(self.ent_tot, self.dim)
         self.rel_embeddings = nn.Embedding(self.rel_tot, self.dim)
+
+        self.entity_mapping = json.load(open(entity_mapping, "rb"))
+        self.relation_mapping = json.load(open(relation_mapping, "rb"))
 
         self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
         self.entity2id = pd.DataFrame(
