@@ -27,8 +27,8 @@ class TransW(Model):
         relation_mapping="benchmarks/FB15K237/relation_mapping.json",
         relation2id_path="benchmarks/FB15K237/relation2id.txt",
         word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
-        unique_ent_terms=12025,
-        unique_rel_terms=446,
+        # unique_ent_terms=12025,
+        # unique_rel_terms=446,
     ):
         super(TransW, self).__init__(ent_tot, rel_tot)
 
@@ -61,10 +61,10 @@ class TransW(Model):
             ),
             columns=["relation", "id"],
         )
-        self.unique_ent_terms = unique_ent_terms
-        self.unique_rel_terms = unique_rel_terms
-        self.We = nn.Embedding(self.unique_ent_terms, dim)
-        self.Wr = nn.Embedding(self.unique_rel_terms, dim)
+        # self.unique_ent_terms = unique_ent_terms
+        # self.unique_rel_terms = unique_rel_terms
+        self.We = nn.Embedding(len(self.entity_mapping), dim)
+        self.Wr = nn.Embedding(len(self.relation_mapping), dim)
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
@@ -163,7 +163,7 @@ class TransW(Model):
                     [self.word2index[term_hi] if term_hi in self.word2index else 0]
                 )
                 # TODO: a entity terms mapping is needed
-                w_hi = self.We(term_id)
+                w_hi = self.We(self.entity_mapping[term_hi])
                 h_i = self.word_embeddings(term_id)
 
                 h = h + torch.mul(h_i, w_hi)
@@ -172,7 +172,7 @@ class TransW(Model):
                 term_id = torch.LongTensor(
                     [self.word2index[term_ti] if term_ti in self.word2index else 0]
                 )
-                w_ti = self.We(term_id)
+                w_ti = self.We(self.entity_mapping[term_ti])
                 h_t = self.word_embeddings(term_id)
 
                 t = t + torch.mul(h_t, w_ti)
@@ -183,7 +183,7 @@ class TransW(Model):
                 )
                 try:
                     # TODO: a relation terms mapping is needed
-                    w_ri = self.Wr(term_id)
+                    w_ri = self.Wr(self.relation_mapping[term_ri])
                     h_r = self.word_embeddings(term_id)
                     r = r + torch.mul(h_r, w_ri)
                 except:
