@@ -66,10 +66,9 @@ class TransW(Model):
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
-        self.word2index = dict(
-            zip(model.index2word, list(range(len(model.index2word))))
-        )
+        self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(
+            word_embeddings_path, limit=10000)
+
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
@@ -174,7 +173,8 @@ class TransW(Model):
                             ]
                         ).to(device)
                     )
-                    h_i = self.word_embeddings.wv[term_hi]
+                    h_i = torch.FloatTensor(self.word_embeddings.wv[term_hi]).to(device)
+
                     h = h + torch.mul(h_i, w_hi)
                 except KeyError:
                     continue
@@ -189,7 +189,7 @@ class TransW(Model):
                             ]
                         ).to(device)
                     )
-                    h_t = self.word_embeddings.wv[term_ti]
+                    h_t = torch.FloatTensor(self.word_embeddings.wv[term_ti]).to(device)
                     t = t + torch.mul(h_t, w_ti)
                 except KeyError:
                     continue
@@ -204,7 +204,7 @@ class TransW(Model):
                             ]
                         ).to(device)
                     )
-                    h_r = self.word_embeddings.wv[term_ri]
+                    h_r = torch.FloatTensor(self.word_embeddings.wv[term_ri]).to(device)
                     r = r + torch.mul(h_r, w_ri)
                 except KeyError:
                     continue
