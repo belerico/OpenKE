@@ -62,9 +62,9 @@ class TransW(Model):
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
+        model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path, limit=10000)
         self.word_embeddings = nn.Embedding.from_pretrained(
-            torch.FloatTensor(model.wv), freeze=True
+            torch.FloatTensor(model.vectors), freeze=True,
         )
 
         del model
