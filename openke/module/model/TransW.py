@@ -67,9 +67,7 @@ class TransW(Model):
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
         self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
-        self.word2index = dict(
-            zip(model.index2word, list(range(len(model.index2word))))
-        )
+
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
@@ -152,7 +150,7 @@ class TransW(Model):
         device = batches_h.device
 
         mode = data["mode"]
-        scores = torch.zeros([n_samples])
+        scores = torch.zeros([n_samples]).to(device)
 
         for i in range(n_samples):
 
