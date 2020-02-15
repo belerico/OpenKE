@@ -132,7 +132,7 @@ class TransW(Model):
         n_samples = len(batches_h)
 
         mode = data["mode"]
-        scores = torch.zeros([1, n_samples])
+        scores = torch.zeros([n_samples])
 
         for i in range(n_samples):
 
@@ -177,7 +177,7 @@ class TransW(Model):
             if self.margin_flag:
                 score = self.margin - score
 
-            scores[0, i] = score
+            scores[i] = score
 
         return scores
 
