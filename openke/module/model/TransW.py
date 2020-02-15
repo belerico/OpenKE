@@ -111,14 +111,14 @@ class TransW(Model):
             entities = self.entity2wiki[["label"]].loc[mid_id].values[0]
         except KeyError:
             entities = ""
-        return entities.lower().translate(self.whitespace_trans).split()
+        return list(set(entities.lower().translate(self.whitespace_trans).split()))
 
     def get_relation_terms(self, relation_id):
         relations_raw = self.relation2id[self.relation2id["id"] == str(relation_id)][
             "relation"
         ].values[0]
         relations_term = relations_raw.lower().translate(self.whitespace_trans).split()
-        return relations_term
+        return list(set(relations_term))
 
     def _calc(self, h, t, r, mode):
         if self.norm_flag:
