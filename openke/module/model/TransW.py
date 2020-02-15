@@ -152,7 +152,7 @@ class TransW(Model):
         device = batches_h.device
 
         mode = data["mode"]
-        scores = torch.zeros([n_samples])
+        scores = torch.zeros([n_samples]).to(device)
 
         for i in range(n_samples):
 
