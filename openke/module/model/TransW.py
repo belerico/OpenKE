@@ -113,7 +113,7 @@ class TransW(Model):
             "entity"
         ].values[0]
         entities = self.entity2wiki[self.entity2wiki.index == mid_id]["label"].values[0]
-        return entities.split()
+        return entities.lower().translate(self.whitespace_trans).split()
 
     def get_relation_terms(self, relation_id):
         relations_raw = self.relation2id[self.relation2id["id"] == str(relation_id)][
