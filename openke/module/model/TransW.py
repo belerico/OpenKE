@@ -130,7 +130,9 @@ class TransW(Model):
         batches_t = data["batch_t"]
         batches_r = data["batch_r"]
         n_samples = len(batches_h)
+
         mode = data["mode"]
+        scores = torch.zeros([1, n_samples])
 
         for i in range(n_samples):
 
@@ -145,7 +147,8 @@ class TransW(Model):
 
             for term_hi in self.get_entity_terms(batch_h):
                 term_id = torch.LongTensor([self.word2index[term_hi] if term_hi in self.word2index
-                                           else 0])
+                                            else 0])
+                # TODO: a entity terms mapping is needed
                 w_hi = self.We(term_id)
                 h_i = self.word_embeddings(term_id)
 
@@ -153,7 +156,7 @@ class TransW(Model):
 
             for term_ti in self.get_entity_terms(batch_t):
                 term_id = torch.LongTensor([self.word2index[term_ti] if term_ti in self.word2index
-                                           else 0])
+                                            else 0])
                 w_ti = self.We(term_id)
                 h_t = self.word_embeddings(term_id)
 
@@ -162,18 +165,21 @@ class TransW(Model):
             for term_ri in self.get_relation_terms(batch_r):
                 term_id = torch.LongTensor([self.word2index[term_ri] if term_ri in self.word2index
                                             else 0])
-
-                # TODO: a relation terms mapping is needed
-                w_ri = self.Wr(term_id)
-                h_r = self.word_embeddings(term_id)
-                r = r + torch.mul(h_r, w_ri)
+                try:
+                    # TODO: a relation terms mapping is needed
+                    w_ri = self.Wr(term_id)
+                    h_r = self.word_embeddings(term_id)
+                    r = r + torch.mul(h_r, w_ri)
+                except:
+                    print("Not found")
 
             score = self._calc(h, t, r, mode)
+            if self.margin_flag:
+                score = self.margin - score
 
-        if self.margin_flag:
-            return self.margin - score
-        else:
-            return score
+            scores[0, i] = score
+
+        return scores
 
 
 def regularization(self, data):
