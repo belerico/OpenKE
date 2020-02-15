@@ -139,9 +139,9 @@ class TransW(Model):
             batch_r = int(batches_r[i])
 
             # SUM W_i
-            h = torch.Tensor()
-            t = torch.Tensor()
-            r = torch.Tensor()
+            h = torch.zeros([1, self.dim])
+            t = torch.zeros([1, self.dim])
+            r = torch.zeros([1, self.dim])
 
             for term_hi in self.get_entity_terms(batch_h):
                 term_id = torch.LongTensor([self.word2index[term_hi] if term_hi in self.word2index
