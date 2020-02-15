@@ -12,20 +12,20 @@ from collections import Counter
 
 class TransW(Model):
     def __init__(
-            self,
-            ent_tot,
-            rel_tot,
-            dim=100,
-            p_norm=1,
-            norm_flag=True,
-            margin=None,
-            epsilon=None,
-            entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
-            entity2id_path="benchmarks/FB15K237/entity2id.txt",
-            relation2id_path="benchmarks/FB15K237/relation2id.txt",
-            word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
-            unique_ent_terms=12025,
-            unique_rel_terms=446,
+        self,
+        ent_tot,
+        rel_tot,
+        dim=100,
+        p_norm=1,
+        norm_flag=True,
+        margin=None,
+        epsilon=None,
+        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+        entity2id_path="benchmarks/FB15K237/entity2id.txt",
+        relation2id_path="benchmarks/FB15K237/relation2id.txt",
+        word_embeddings_path="embeddings/enwiki_20180420_win10_100d.txt",
+        unique_ent_terms=12025,
+        unique_rel_terms=446,
     ):
         super(TransW, self).__init__(ent_tot, rel_tot)
 
@@ -62,11 +62,15 @@ class TransW(Model):
 
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        model = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path, limit=10000)
+        model = gensim.models.KeyedVectors.load_word2vec_format(
+            word_embeddings_path, limit=10000
+        )
         self.word_embeddings = nn.Embedding.from_pretrained(
             torch.FloatTensor(model.vectors), freeze=True,
         )
-        self.word2index = dict(zip(model.index2word, list(range(len(model.index2word)))))
+        self.word2index = dict(
+            zip(model.index2word, list(range(len(model.index2word))))
+        )
 
         del model
 
@@ -99,13 +103,16 @@ class TransW(Model):
             self.margin_flag = False
 
     def get_entity_terms(self, entity_id):
-        mid_id = self.entity2id[self.entity2id['id'] == str(entity_id)]['entity'].values[0]
-        entities = self.entity2wiki[self.entity2wiki.index == mid_id]['label'].values[0]
+        mid_id = self.entity2id[self.entity2id["id"] == str(entity_id)][
+            "entity"
+        ].values[0]
+        entities = self.entity2wiki[self.entity2wiki.index == mid_id]["label"].values[0]
         return entities.split()
 
     def get_relation_terms(self, relation_id):
-        relations_raw = self.relation2id[self.relation2id['id'] == str(relation_id)][
-            'relation'].values[0]
+        relations_raw = self.relation2id[self.relation2id["id"] == str(relation_id)][
+            "relation"
+        ].values[0]
         relations_term = relations_raw.lower().translate(self.whitespace_trans).split()
         return relations_term
 
@@ -146,8 +153,9 @@ class TransW(Model):
             r = torch.zeros([1, self.dim])
 
             for term_hi in self.get_entity_terms(batch_h):
-                term_id = torch.LongTensor([self.word2index[term_hi] if term_hi in self.word2index
-                                            else 0])
+                term_id = torch.LongTensor(
+                    [self.word2index[term_hi] if term_hi in self.word2index else 0]
+                )
                 # TODO: a entity terms mapping is needed
                 w_hi = self.We(term_id)
                 h_i = self.word_embeddings(term_id)
@@ -155,16 +163,18 @@ class TransW(Model):
                 h = h + torch.mul(h_i, w_hi)
 
             for term_ti in self.get_entity_terms(batch_t):
-                term_id = torch.LongTensor([self.word2index[term_ti] if term_ti in self.word2index
-                                            else 0])
+                term_id = torch.LongTensor(
+                    [self.word2index[term_ti] if term_ti in self.word2index else 0]
+                )
                 w_ti = self.We(term_id)
                 h_t = self.word_embeddings(term_id)
 
                 t = t + torch.mul(h_t, w_ti)
 
             for term_ri in self.get_relation_terms(batch_r):
-                term_id = torch.LongTensor([self.word2index[term_ri] if term_ri in self.word2index
-                                            else 0])
+                term_id = torch.LongTensor(
+                    [self.word2index[term_ri] if term_ri in self.word2index else 0]
+                )
                 try:
                     # TODO: a relation terms mapping is needed
                     w_ri = self.Wr(term_id)
