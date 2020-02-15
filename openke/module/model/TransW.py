@@ -152,14 +152,20 @@ class TransW(Model):
                 h = h + torch.mul(h_i, w_hi)
 
             for term_ti in self.get_entity_terms(batch_t):
-                w_ti = self.We(term_ti)
-                h_t = self.word_embeddings(term_ti)
+                term_id = torch.LongTensor([self.word2index[term_ti] if term_ti in self.word2index
+                                           else 0])
+                w_ti = self.We(term_id)
+                h_t = self.word_embeddings(term_id)
 
                 t = t + torch.mul(h_t, w_ti)
 
             for term_ri in self.get_relation_terms(batch_r):
-                w_ri = self.Wr(term_ri)
-                h_r = self.word_embeddings(w_ri)
+                term_id = torch.LongTensor([self.word2index[term_ri] if term_ri in self.word2index
+                                            else 0])
+
+                # TODO: a relation terms mapping is needed
+                w_ri = self.Wr(term_id)
+                h_r = self.word_embeddings(term_id)
                 r = r + torch.mul(h_r, w_ri)
 
             score = self._calc(h, t, r, mode)
