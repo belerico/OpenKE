@@ -14,7 +14,7 @@ from compact_bilinear_pooling import CountSketch, CompactBilinearPooling
 from wikipedia2vec import Wikipedia2Vec
 
 
-class TransE(Model):
+class TransW(Model):
     def __init__(
         self,
         ent_tot,
@@ -31,7 +31,7 @@ class TransE(Model):
         relation2id_path="benchmarks/FB15K237/relation2id.txt",
         word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
     ):
-        super(TransE, self).__init__(ent_tot, rel_tot)
+        super(TransW, self).__init__(ent_tot, rel_tot)
 
         self.dim = dim
         self.margin = margin
@@ -49,7 +49,7 @@ class TransE(Model):
         self.entity_mapping = json.load(open(entity_mapping, "rb"))
         self.relation_mapping = json.load(open(relation_mapping, "rb"))
         self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
-        self.entity2wiki = self.entity2wiki[~entity2wiki["wikipedia"].isnull()]
+        self.entity2wiki = self.entity2wiki[~self.entity2wiki["wikipedia"].isnull()]
         self.entity2id = pd.DataFrame(
             data=numpy.loadtxt(entity2id_path, delimiter="\t", skiprows=1, dtype=str),
             columns=["entity", "id"],
