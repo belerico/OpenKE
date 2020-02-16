@@ -16,22 +16,22 @@ import os
 
 class TransW(Model):
     def __init__(
-            self,
-            ent_tot,
-            rel_tot,
-            dim=100,
-            p_norm=1,
-            norm_flag=True,
-            margin=None,
-            epsilon=None,
-            entity_mapping="benchmarks/FB15K237/entity_mapping.json",
-            entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
-            entity2id_path="benchmarks/FB15K237/entity2id.txt",
-            relation_mapping="benchmarks/FB15K237/relation_mapping.json",
-            relation2id_path="benchmarks/FB15K237/relation2id.txt",
-            word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
-            # unique_ent_terms=12025,
-            # unique_rel_terms=446,
+        self,
+        ent_tot,
+        rel_tot,
+        dim=100,
+        p_norm=1,
+        norm_flag=True,
+        margin=None,
+        epsilon=None,
+        entity_mapping="benchmarks/FB15K237/entity_mapping.json",
+        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+        entity2id_path="benchmarks/FB15K237/entity2id.txt",
+        relation_mapping="benchmarks/FB15K237/relation_mapping.json",
+        relation2id_path="benchmarks/FB15K237/relation2id.txt",
+        word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
+        # unique_ent_terms=12025,
+        # unique_rel_terms=446,
     ):
         super(TransW, self).__init__(ent_tot, rel_tot)
 
@@ -80,7 +80,8 @@ class TransW(Model):
             raise Exception("The path for the word embeddings must be set")
         if word_embeddings_path.split("/")[-1] == ".txt":
             self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(
-                word_embeddings_path)
+                word_embeddings_path
+            )
         else:
             self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
 
@@ -187,7 +188,11 @@ class TransW(Model):
                     h_i = torch.FloatTensor(
                         self.word_embeddings.get_word_vector(term_hi)
                     ).to(device)
-                    h = h + torch.mul(h_i, w_hi) + self.bias_e(torch.LongTensor([batch_h]))
+                    h = (
+                        h
+                        + torch.mul(h_i, w_hi)
+                        + self.bias_e(torch.LongTensor([batch_h]).to(device))
+                    )
                 except KeyError:
                     continue
             self.ent_embeddings.weight[batch_h] = h
@@ -201,7 +206,11 @@ class TransW(Model):
                     h_t = torch.FloatTensor(
                         self.word_embeddings.get_word_vector(term_ti)
                     ).to(device)
-                    t = t + torch.mul(h_t, w_ti) + self.bias_e(torch.LongTensor([batch_t]))
+                    t = (
+                        t
+                        + torch.mul(h_t, w_ti)
+                        + self.bias_e(torch.LongTensor([batch_t]).to(device))
+                    )
                 except KeyError:
                     continue
             self.ent_embeddings.weight[batch_t] = t
@@ -215,7 +224,11 @@ class TransW(Model):
                     h_r = torch.FloatTensor(
                         self.word_embeddings.get_word_vector(term_ri)
                     ).to(device)
-                    r = r + torch.mul(h_r, w_ri) + self.bias_r(torch.LongTensor([batch_r]))
+                    r = (
+                        r
+                        + torch.mul(h_r, w_ri)
+                        + self.bias_r(torch.LongTensor([batch_r]).to(device))
+                    )
                 except KeyError:
                     continue
             self.rel_embeddings.weight[batch_r] = r
