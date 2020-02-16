@@ -95,7 +95,7 @@ class TransEW(Model):
         else:
             self.margin_flag = False
 
-    def initialize_embeddings(self, cbp=True):
+    def initialize_embeddings(self, merge="sum"):
         for entity, idx in self.entity2id.itertuples(index=False, name=None):
             try:
                 entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
@@ -115,14 +115,27 @@ class TransEW(Model):
                 )
                 term_found = False
                 old_init = self.rel_embeddings.weight.data[int(idx)]
-                self.rel_embeddings.weight.data[int(idx)] = torch.zeros(
-                    [1, self.dim]
-                ).data
+                if merge == "sum":
+                    self.rel_embeddings.weight.data[int(idx)] = torch.zeros(
+                        [1, self.dim]
+                    ).data
+                elif merge == "hadamard":
+                    self.rel_embeddings.weight.data[int(idx)] = torch.ones(
+                        [1, self.dim]
+                    ).data
                 for term in terms:
                     try:
-                        self.rel_embeddings.weight.data[int(idx)] += torch.Tensor(
-                            self.word_embeddings.get_word_vector(term)
-                        ).data
+                        if merge == "sum":
+                            self.rel_embeddings.weight.data[int(idx)] += torch.Tensor(
+                                self.word_embeddings.get_word_vector(term)
+                            ).data
+                        else:
+                            self.rel_embeddings.weight.data[int(idx)] = torch.mul(
+                                torch.Tensor(
+                                    self.word_embeddings.get_word_vector(term)
+                                ).data,
+                                self.rel_embeddings.weight.data[int(idx)],
+                            )
                         if not term_found:
                             term_found = True
                     except KeyError:
