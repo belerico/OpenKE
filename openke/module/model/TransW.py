@@ -167,64 +167,75 @@ class TransW(Model):
         mode = data["mode"]
         scores = torch.zeros([n_samples]).to(device)
 
-        for i in range(n_samples):
-
-            batch_h = int(batches_h[i])
-            batch_t = int(batches_t[i])
-            batch_r = int(batches_r[i])
-
-            # SUM W_i
-            h = torch.zeros([1, self.dim]).to(device)
-            t = torch.zeros([1, self.dim]).to(device)
-            r = torch.zeros([1, self.dim]).to(device)
-
-            terms_hi = self.get_entity_terms(batch_h)
-            for term_hi in terms_hi:
-                try:
-                    w_hi = self.We(
-                        torch.LongTensor([self.entity_mapping[term_hi]]).to(device)
-                    )
-                    h_i = torch.FloatTensor(
-                        self.word_embeddings.get_word_vector(term_hi)
-                    ).to(device)
-                    h = h + torch.mul(h_i, w_hi) + self.bias_e(torch.LongTensor([batch_h]))
-                except KeyError:
-                    continue
-            self.ent_embeddings.weight[batch_h] = h
-
-            terms_ti = self.get_entity_terms(batch_t)
-            for term_ti in terms_ti:
-                try:
-                    w_ti = self.We(
-                        torch.LongTensor([self.entity_mapping[term_ti]]).to(device)
-                    )
-                    h_t = torch.FloatTensor(
-                        self.word_embeddings.get_word_vector(term_ti)
-                    ).to(device)
-                    t = t + torch.mul(h_t, w_ti) + self.bias_e(torch.LongTensor([batch_t]))
-                except KeyError:
-                    continue
-            self.ent_embeddings.weight[batch_t] = t
-
-            terms_ri = self.get_relation_terms(batch_r)
-            for term_ri in terms_ri:
-                try:
-                    w_ri = self.Wr(
-                        torch.LongTensor([self.relation_mapping[term_ri]]).to(device)
-                    )
-                    h_r = torch.FloatTensor(
-                        self.word_embeddings.get_word_vector(term_ri)
-                    ).to(device)
-                    r = r + torch.mul(h_r, w_ri) + self.bias_r(torch.LongTensor([batch_r]))
-                except KeyError:
-                    continue
-            self.rel_embeddings.weight[batch_r] = r
-
+        if mode == "head_batch":
+            h = self.ent_embeddings(batches_h)
+            t = self.ent_embeddings(batches_t)
+            r = self.rel_embeddings(batches_r)
             score = self._calc(h, t, r, mode)
             if self.margin_flag:
-                score = self.margin - score
+                return self.margin - score
+            else:
+                return score
 
-            scores[i] = score
+        else:
+            for i in range(n_samples):
+
+                batch_h = int(batches_h[i])
+                batch_t = int(batches_t[i])
+                batch_r = int(batches_r[i])
+
+                # SUM W_i
+                h = torch.zeros([1, self.dim]).to(device)
+                t = torch.zeros([1, self.dim]).to(device)
+                r = torch.zeros([1, self.dim]).to(device)
+
+                terms_hi = self.get_entity_terms(batch_h)
+                for term_hi in terms_hi:
+                    try:
+                        w_hi = self.We(
+                            torch.LongTensor([self.entity_mapping[term_hi]]).to(device)
+                        )
+                        h_i = torch.FloatTensor(
+                            self.word_embeddings.get_word_vector(term_hi)
+                        ).to(device)
+                        h = h + torch.mul(h_i, w_hi) + self.bias_e(torch.LongTensor([batch_h]))
+                    except KeyError:
+                        continue
+                self.ent_embeddings.weight[batch_h] = h
+
+                terms_ti = self.get_entity_terms(batch_t)
+                for term_ti in terms_ti:
+                    try:
+                        w_ti = self.We(
+                            torch.LongTensor([self.entity_mapping[term_ti]]).to(device)
+                        )
+                        h_t = torch.FloatTensor(
+                            self.word_embeddings.get_word_vector(term_ti)
+                        ).to(device)
+                        t = t + torch.mul(h_t, w_ti) + self.bias_e(torch.LongTensor([batch_t]))
+                    except KeyError:
+                        continue
+                self.ent_embeddings.weight[batch_t] = t
+
+                terms_ri = self.get_relation_terms(batch_r)
+                for term_ri in terms_ri:
+                    try:
+                        w_ri = self.Wr(
+                            torch.LongTensor([self.relation_mapping[term_ri]]).to(device)
+                        )
+                        h_r = torch.FloatTensor(
+                            self.word_embeddings.get_word_vector(term_ri)
+                        ).to(device)
+                        r = r + torch.mul(h_r, w_ri) + self.bias_r(torch.LongTensor([batch_r]))
+                    except KeyError:
+                        continue
+                self.rel_embeddings.weight[batch_r] = r
+
+                score = self._calc(h, t, r, mode)
+                if self.margin_flag:
+                    score = self.margin - score
+
+                scores[i] = score
 
         return scores
 

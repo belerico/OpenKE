@@ -5,6 +5,9 @@ from openke.module.loss import MarginLoss
 from openke.module.strategy import NegativeSampling
 from openke.data import TrainDataLoader, TestDataLoader
 
+TRAIN = True
+EPOCHS = 1
+
 # dataloader for training
 train_dataloader = TrainDataLoader(
     in_path="./benchmarks/FB15K237/",
@@ -17,10 +20,6 @@ train_dataloader = TrainDataLoader(
     neg_ent=25,
     neg_rel=0)
 
-# dataloader for test
-# test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
-
-# define the model
 transw = TransW(
     ent_tot=train_dataloader.get_ent_tot(),
     rel_tot=train_dataloader.get_rel_tot(),
@@ -28,6 +27,9 @@ transw = TransW(
     p_norm=1,
     word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
     norm_flag=True)
+
+
+test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
 
 # define the loss function
 model = NegativeSampling(
@@ -37,14 +39,18 @@ model = NegativeSampling(
 )
 
 # train the model
-trainer = Trainer(model=model, data_loader=train_dataloader, train_times=1000, alpha=1.0,
+
+# test the model
+test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
+transw.load_checkpoint('./checkpoint/transw.ckpt')
+tester = Tester(model=transw, data_loader=test_dataloader, use_gpu=False)
+tester.run_link_prediction(type_constrain=False)
+
+trainer = Trainer(model=model, data_loader=train_dataloader, train_times=EPOCHS, alpha=1.0,
                   use_gpu=False)
 
 trainer.run()
-transw.save_checkpoint('./checkpoint/transe.ckpt')
+transw.save_checkpoint('./checkpoint/transw.ckpt')
 
-test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
-# test the model
-transw.load_checkpoint('./checkpoint/transe.ckpt')
-tester = Tester(model=transw, data_loader=test_dataloader, use_gpu=True)
-tester.run_link_prediction(type_constrain=False)
+
+
