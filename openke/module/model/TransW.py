@@ -198,7 +198,7 @@ class TransW(Model):
                         h_i = torch.FloatTensor(
                             self.word_embeddings.get_word_vector(term_hi)
                         ).to(device)
-                        h = h + torch.mul(h_i, w_hi) + self.bias_e(torch.LongTensor([batch_h]))
+                        h = h + torch.mul(h_i, w_hi) + self.bias_e(torch.LongTensor([batch_h]).to(device))
                     except KeyError:
                         continue
                 self.ent_embeddings.weight[batch_h] = h
@@ -212,7 +212,7 @@ class TransW(Model):
                         h_t = torch.FloatTensor(
                             self.word_embeddings.get_word_vector(term_ti)
                         ).to(device)
-                        t = t + torch.mul(h_t, w_ti) + self.bias_e(torch.LongTensor([batch_t]))
+                        t = t + torch.mul(h_t, w_ti) + self.bias_e(torch.LongTensor([batch_t]).to(device))
                     except KeyError:
                         continue
                 self.ent_embeddings.weight[batch_t] = t
@@ -226,7 +226,7 @@ class TransW(Model):
                         h_r = torch.FloatTensor(
                             self.word_embeddings.get_word_vector(term_ri)
                         ).to(device)
-                        r = r + torch.mul(h_r, w_ri) + self.bias_r(torch.LongTensor([batch_r]))
+                        r = r + torch.mul(h_r, w_ri) + self.bias_r(torch.LongTensor([batch_r]).to(device))
                     except KeyError:
                         continue
                 self.rel_embeddings.weight[batch_r] = r
