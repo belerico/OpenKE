@@ -1,10 +1,13 @@
 import openke
 from openke.config import Trainer, Tester
-from openke.module.model import TransW
+from openke.module.model import TransEW
 from openke.module.loss import MarginLoss
 from openke.module.strategy import NegativeSampling
 from openke.data import TrainDataLoader, TestDataLoader
+import torch
 
+
+GPU = torch.cuda.is_available()
 # dataloader for training
 train_dataloader = TrainDataLoader(
     in_path="./benchmarks/FB15K237/",
@@ -14,44 +17,34 @@ train_dataloader = TrainDataLoader(
     bern_flag=1,
     filter_flag=1,
     neg_ent=25,
-    neg_rel=0,
-)
-
-# dataloader for test
-# test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
+    neg_rel=0)
 
 # define the model
-transw = TransW(
+transw = TransEW(
     ent_tot=train_dataloader.get_ent_tot(),
     rel_tot=train_dataloader.get_rel_tot(),
     dim=100,
     p_norm=1,
-    norm_flag=True,
-)
+    norm_flag=True)
+
 transw.initialize_embeddings()
 
 # define the loss function
 model = NegativeSampling(
     model=transw,
     loss=MarginLoss(margin=5.0),
-    batch_size=train_dataloader.get_batch_size(),
+    batch_size=train_dataloader.get_batch_size()
 )
 
 # train the model
-trainer = Trainer(
-    model=model,
-    data_loader=train_dataloader,
-    train_times=100,
-    alpha=0.001,
-    use_gpu=True,
-    opt_method="Adam",
-)
+trainer = Trainer(model=model, data_loader=train_dataloader, train_times=10, alpha=1.0,
+                  use_gpu=GPU)
 
 trainer.run()
-transw.save_checkpoint("./checkpoint/transw.ckpt")
+transw.save_checkpoint('./checkpoint/transe.ckpt')
 
 test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
 # test the model
-transw.load_checkpoint("./checkpoint/transw.ckpt")
-tester = Tester(model=transw, data_loader=test_dataloader, use_gpu=True)
+transw.load_checkpoint('./checkpoint/transe.ckpt')
+tester = Tester(model=transw, data_loader=test_dataloader, use_gpu=GPU)
 tester.run_link_prediction(type_constrain=False)
