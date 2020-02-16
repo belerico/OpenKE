@@ -27,7 +27,7 @@ if __name__ == "__main__":
         data=new_entities[:, 1:], columns=entity2wiki.columns, index=new_entities[:, 0]
     )
     entity2wiki = pd.concat([entity2wiki, new_entities])
-    entity2wiki.to_json("benchmarks/FB15K237/entity2wikidata_new.json")
+    entity2wiki.to_json("benchmarks/FB15K237/entity2wikidata.json")
     labels = list(
         itertools.chain(
             *entity2wiki.label.apply(

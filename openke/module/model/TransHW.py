@@ -151,17 +151,22 @@ class TransHW(Model):
                 terms = list(
                     set(relation.lower().translate(self.whitespace_trans).split())
                 )
-                if terms != []:
-                    self.rel_embeddings.weight.data[int(idx)] = torch.zeros(
-                        [1, self.dim]
-                    ).data
-                    for term in terms:
-                        try:
-                            self.rel_embeddings.weight.data[int(idx)] += torch.Tensor(
-                                self.word_embeddings.get_word_vector(term)
-                            ).data
-                        except KeyError:
-                            continue
+                term_found = False
+                old_init = self.rel_embeddings.weight.data[int(idx)]
+                self.rel_embeddings.weight.data[int(idx)] = torch.zeros(
+                    [1, self.dim]
+                ).data
+                for term in terms:
+                    try:
+                        self.rel_embeddings.weight.data[int(idx)] += torch.Tensor(
+                            self.word_embeddings.get_word_vector(term)
+                        ).data
+                        if not term_found:
+                            term_found = True
+                    except KeyError:
+                        continue
+                if not term_found:
+                    self.rel_embeddings.weight.data[int(idx)] = old_init
             except KeyError:
                 continue
 
