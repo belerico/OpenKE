@@ -26,6 +26,7 @@ transw = TransW(
     rel_tot=train_dataloader.get_rel_tot(),
     dim=100,
     p_norm=1,
+    word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
     norm_flag=True)
 
 # define the loss function
