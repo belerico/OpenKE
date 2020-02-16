@@ -29,7 +29,7 @@ class TransEW(Model):
         entity2id_path="benchmarks/FB15K237/entity2id.txt",
         relation_mapping="benchmarks/FB15K237/relation_mapping.json",
         relation2id_path="benchmarks/FB15K237/relation2id.txt",
-        word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
+        word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
     ):
         super(TransEW, self).__init__(ent_tot, rel_tot)
 
