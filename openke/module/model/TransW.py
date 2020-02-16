@@ -99,8 +99,12 @@ class TransW(Model):
             try:
                 entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
                 entity_name = os.path.basename(entity_url)
-                self.ent_embeddings.weight[id] = self.word_embeddings.get_entity_vector(
-                    entity_name.replace("_", " ")
+                self.ent_embeddings.weight[id] = torch.FloatTensor(
+                    [
+                        self.word_embeddings.get_entity_vector(
+                            entity_name.replace("_", " ")
+                        )
+                    ]
                 )
             except KeyError:
                 continue
