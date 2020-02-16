@@ -9,27 +9,29 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .Model import Model
 from collections import Counter
+from compact_bilinear_pooling import CountSketch, CompactBilinearPooling
 from wikipedia2vec import Wikipedia2Vec
+import os
 
 
 class TransW(Model):
     def __init__(
-        self,
-        ent_tot,
-        rel_tot,
-        dim=100,
-        p_norm=1,
-        norm_flag=True,
-        margin=None,
-        epsilon=None,
-        entity_mapping="benchmarks/FB15K237/entity_mapping.json",
-        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
-        entity2id_path="benchmarks/FB15K237/entity2id.txt",
-        relation_mapping="benchmarks/FB15K237/relation_mapping.json",
-        relation2id_path="benchmarks/FB15K237/relation2id.txt",
-        word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
-        # unique_ent_terms=12025,
-        # unique_rel_terms=446,
+            self,
+            ent_tot,
+            rel_tot,
+            dim=100,
+            p_norm=1,
+            norm_flag=True,
+            margin=None,
+            epsilon=None,
+            entity_mapping="benchmarks/FB15K237/entity_mapping.json",
+            entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+            entity2id_path="benchmarks/FB15K237/entity2id.txt",
+            relation_mapping="benchmarks/FB15K237/relation_mapping.json",
+            relation2id_path="benchmarks/FB15K237/relation2id.txt",
+            word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
+            # unique_ent_terms=12025,
+            # unique_rel_terms=446,
     ):
         super(TransW, self).__init__(ent_tot, rel_tot)
 
@@ -67,10 +69,20 @@ class TransW(Model):
         self.Wr = nn.Embedding(len(self.relation_mapping), dim)
         self.Wr.weight.requires_grad = True
 
+        self.bias_e = nn.Embedding(self.ent_tot, self.dim)
+        self.bias_r = nn.Embedding(self.ent_tot, self.dim)
+        self.bias_e.weight.requires_grad = True
+        self.bias_r.weight.requires_grad = True
+
+        self.mcb = CompactBilinearPooling(self.dim, self.dim, self.dim)
+
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        # self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(word_embeddings_path)
-        self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
+        if word_embeddings_path.split("/")[-1] == ".txt":
+            self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(
+                word_embeddings_path)
+        else:
+            self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
@@ -175,7 +187,7 @@ class TransW(Model):
                     h_i = torch.FloatTensor(
                         self.word_embeddings.get_word_vector(term_hi)
                     ).to(device)
-                    h = h + torch.mul(h_i, w_hi)
+                    h = h + torch.mul(h_i, w_hi) + self.bias_e(torch.LongTensor([batch_h]))
                 except KeyError:
                     continue
             self.ent_embeddings.weight[batch_h] = h
@@ -189,7 +201,7 @@ class TransW(Model):
                     h_t = torch.FloatTensor(
                         self.word_embeddings.get_word_vector(term_ti)
                     ).to(device)
-                    t = t + torch.mul(h_t, w_ti)
+                    t = t + torch.mul(h_t, w_ti) + self.bias_e(torch.LongTensor([batch_t]))
                 except KeyError:
                     continue
             self.ent_embeddings.weight[batch_t] = t
@@ -203,7 +215,7 @@ class TransW(Model):
                     h_r = torch.FloatTensor(
                         self.word_embeddings.get_word_vector(term_ri)
                     ).to(device)
-                    r = r + torch.mul(h_r, w_ri)
+                    r = r + torch.mul(h_r, w_ri) + self.bias_r(torch.LongTensor([batch_r]))
                 except KeyError:
                     continue
             self.rel_embeddings.weight[batch_r] = r
