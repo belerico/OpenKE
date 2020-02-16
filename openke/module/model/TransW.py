@@ -95,34 +95,38 @@ class TransW(Model):
             self.margin_flag = False
 
     def initialize_embeddings(self):
-        for entity, id in self.entity2id.itertuples(index=False, name=None):
+        for entity, idx in self.entity2id.itertuples(index=False, name=None):
             try:
                 entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
                 entity_name = os.path.basename(entity_url)
-                self.ent_embeddings.weight[id] = torch.FloatTensor(
-                    [
-                        self.word_embeddings.get_entity_vector(
-                            entity_name.replace("_", " ")
-                        )
-                    ]
-                )
+                self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
+                    self.word_embeddings.get_entity_vector(
+                        entity_name.replace("_", " ")
+                    )
+                ).data
             except KeyError:
                 continue
 
-        for relation, id in self.relation2id.itertuples(index=False, name=None):
+        for relation, idx in self.relation2id.itertuples(index=False, name=None):
             try:
-                self.ent_embeddings.weight[id] = torch.zeros([1, self.dim])
-                for term in list(
-                    set(relation.lower().transform(self.whitespace_trans).split())
-                ):
-                    try:
-                        self.ent_embeddings.weight[
-                            id
-                        ] += self.word_embeddings.get_word_vector(term)
-                    except KeyError:
-                        continue
+                terms = list(
+                    set(relation.lower().translate(self.whitespace_trans).split())
+                )
+                if terms != []:
+                    self.rel_embeddings.weight.data[int(idx)] = torch.zeros(
+                        [1, self.dim]
+                    ).data
+                    for term in terms:
+                        try:
+                            self.rel_embeddings.weight.data[int(idx)] += torch.Tensor(
+                                self.word_embeddings.get_word_vector(term)
+                            ).data
+                        except KeyError:
+                            continue
             except KeyError:
                 continue
+
+        del self.word_embeddings
 
     def _calc(self, h, t, r, mode):
         if self.norm_flag:
