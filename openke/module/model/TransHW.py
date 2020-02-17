@@ -66,41 +66,7 @@ class TransHW(Model):
         else:
             self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
 
-        # self.mcb = CompactBilinearPooling(self.dim, self.dim, self.dim)
-
-        def initialize_embeddings(self):
-            for entity, idx in self.entity2id.itertuples(index=False, name=None):
-                try:
-                    entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
-                    entity_name = os.path.basename(entity_url)
-                    self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                        self.word_embeddings.get_entity_vector(
-                            entity_name.replace("_", " ")
-                        )
-                    ).data
-                except KeyError:
-                    continue
-
-            for relation, idx in self.relation2id.itertuples(index=False, name=None):
-                try:
-                    terms = list(
-                        set(relation.lower().translate(self.whitespace_trans).split())
-                    )
-                    if terms != []:
-                        self.rel_embeddings.weight.data[int(idx)] = torch.zeros(
-                            [1, self.dim]
-                        ).data
-                        for term in terms:
-                            try:
-                                self.rel_embeddings.weight.data[int(idx)] += torch.Tensor(
-                                    self.word_embeddings.get_word_vector(term)
-                                ).data
-                            except KeyError:
-                                continue
-                except KeyError:
-                    continue
-
-            del self.word_embeddings
+        self.mcb = CompactBilinearPooling(self.dim, self.dim, self.dim)
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
