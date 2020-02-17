@@ -29,7 +29,7 @@ transw = TransEW(
     relation_mapping="./benchmarks/WN18RR/relation_mapping.json",
     entity2wiki_path=None,
     relation2id_path="benchmarks/WN18RR/relation2id.txt",
-    word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
+    word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
     p_norm=1,
     norm_flag=True)
 

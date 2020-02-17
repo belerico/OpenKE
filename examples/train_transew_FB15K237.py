@@ -6,7 +6,6 @@ from openke.module.strategy import NegativeSampling
 from openke.data import TrainDataLoader, TestDataLoader
 import torch
 
-
 GPU = torch.cuda.is_available()
 # dataloader for training
 train_dataloader = TrainDataLoader(
@@ -23,8 +22,10 @@ train_dataloader = TrainDataLoader(
 transw = TransEW(
     ent_tot=train_dataloader.get_ent_tot(),
     rel_tot=train_dataloader.get_rel_tot(),
+    word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
     dim=100,
     p_norm=1,
+
     norm_flag=True)
 
 transw.initialize_embeddings()

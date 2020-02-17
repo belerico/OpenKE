@@ -16,20 +16,20 @@ from wikipedia2vec import Wikipedia2Vec
 
 class TransEW(Model):
     def __init__(
-        self,
-        ent_tot,
-        rel_tot,
-        dim=100,
-        p_norm=1,
-        norm_flag=True,
-        margin=None,
-        epsilon=None,
-        entity_mapping="benchmarks/FB15K237/entity_mapping.json",
-        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
-        entity2id_path="benchmarks/FB15K237/entity2id.txt",
-        relation_mapping="benchmarks/FB15K237/relation_mapping.json",
-        relation2id_path="benchmarks/FB15K237/relation2id.txt",
-        word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
+            self,
+            ent_tot,
+            rel_tot,
+            dim=100,
+            p_norm=1,
+            norm_flag=True,
+            margin=None,
+            epsilon=None,
+            entity_mapping="benchmarks/FB15K237/entity_mapping.json",
+            entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+            entity2id_path="benchmarks/FB15K237/entity2id.txt",
+            relation_mapping="benchmarks/FB15K237/relation_mapping.json",
+            relation2id_path="benchmarks/FB15K237/relation2id.txt",
+            word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
     ):
         super(TransEW, self).__init__(ent_tot, rel_tot)
 
@@ -64,7 +64,8 @@ class TransEW(Model):
         )
         if word_embeddings_path is None:
             raise Exception("The path for the word embeddings must be set")
-        if word_embeddings_path.split("/")[-1] == ".txt":
+
+        if word_embeddings_path.split("/")[-1].split(".")[-1] == "txt":
             self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(
                 word_embeddings_path
             )
@@ -110,20 +111,36 @@ class TransEW(Model):
                     continue
             return terms_indices
 
+        count = 0
         if entity_vector:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
-                    entity_url = (
-                        self.entity2wiki[["wikipedia"]].loc[entity].values[0]
-                    )
-                    entity_name = os.path.basename(entity_url)
-                    self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                        self.word_embeddings.get_entity_vector(
-                            entity_name.replace("_", " ")
+                    if self.entity2wiki is not None:
+                        entity_url = (
+                            self.entity2wiki[["wikipedia"]].loc[entity].values[0]
                         )
-                    ).data
+                        entity_name = os.path.basename(entity_url).replace("_", " ")
+
+                    elif self.relation_mapping:
+                        entity_name = string.capwords(
+                            self.entity_mapping[entity]['label'].replace("_", " "))
+
+                    else:
+                        break
                 except KeyError:
                     continue
+
+                try:
+                    self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
+                        self.word_embeddings.get_entity_vector(
+                            entity_name
+                        )
+                    ).data
+                except:
+                    print(entity_name)
+                    count += 1
+
+            print('Missing {}'.format(count))
         else:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
