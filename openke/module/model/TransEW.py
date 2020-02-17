@@ -16,20 +16,20 @@ from wikipedia2vec import Wikipedia2Vec
 
 class TransEW(Model):
     def __init__(
-        self,
-        ent_tot,
-        rel_tot,
-        dim=100,
-        p_norm=1,
-        norm_flag=True,
-        margin=None,
-        epsilon=None,
-        entity_mapping="benchmarks/FB15K237/entity_mapping.json",
-        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
-        entity2id_path="benchmarks/FB15K237/entity2id.txt",
-        relation_mapping="benchmarks/FB15K237/relation_mapping.json",
-        relation2id_path="benchmarks/FB15K237/relation2id.txt",
-        word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
+            self,
+            ent_tot,
+            rel_tot,
+            dim=100,
+            p_norm=1,
+            norm_flag=True,
+            margin=None,
+            epsilon=None,
+            entity_mapping="benchmarks/FB15K237/entity_mapping.json",
+            entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+            entity2id_path="benchmarks/FB15K237/entity2id.txt",
+            relation_mapping="benchmarks/FB15K237/relation_mapping.json",
+            relation2id_path="benchmarks/FB15K237/relation2id.txt",
+            word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
     ):
         super(TransEW, self).__init__(ent_tot, rel_tot)
 
@@ -48,8 +48,12 @@ class TransEW(Model):
 
         self.entity_mapping = json.load(open(entity_mapping, "rb"))
         self.relation_mapping = json.load(open(relation_mapping, "rb"))
-        self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
-        self.entity2wiki = self.entity2wiki[~self.entity2wiki["wikipedia"].isnull()]
+        if entity2wiki_path:
+            self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
+            self.entity2wiki = self.entity2wiki[~self.entity2wiki["wikipedia"].isnull()]
+        else:
+            self.entity2wiki = None
+
         self.entity2id = pd.DataFrame(
             data=numpy.loadtxt(entity2id_path, delimiter="\t", skiprows=1, dtype=str),
             columns=["entity", "id"],
@@ -99,13 +103,17 @@ class TransEW(Model):
         if entity_vector:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
-                    entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
-                    entity_name = os.path.basename(entity_url)
-                    self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                        self.word_embeddings.get_entity_vector(
-                            entity_name.replace("_", " ")
-                        )
-                    ).data
+                    if self.entity2wiki:
+                        entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                        entity_name = os.path.basename(entity_url)
+                        self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
+                            self.word_embeddings.get_entity_vector(
+                                entity_name.replace("_", " ")
+                            )
+                        ).data
+                    else:
+                        pass
+                # TODO: use mapping file for "label" of each entity
                 except KeyError:
                     continue
         else:
