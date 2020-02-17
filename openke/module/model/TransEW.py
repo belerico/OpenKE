@@ -113,19 +113,15 @@ class TransEW(Model):
         if entity_vector:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
-                    if self.entity2wiki:
-                        entity_url = (
-                            self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                    entity_url = (
+                        self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                    )
+                    entity_name = os.path.basename(entity_url)
+                    self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
+                        self.word_embeddings.get_entity_vector(
+                            entity_name.replace("_", " ")
                         )
-                        entity_name = os.path.basename(entity_url)
-                        self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                            self.word_embeddings.get_entity_vector(
-                                entity_name.replace("_", " ")
-                            )
-                        ).data
-                    else:
-                        pass
-                # TODO: use mapping file for "label" of each entity
+                    ).data
                 except KeyError:
                     continue
         else:

@@ -19,16 +19,22 @@ from wikipedia2vec import Wikipedia2Vec
 
 
 class TransHW(Model):
-
-    def __init__(self, ent_tot, rel_tot, dim=100, p_norm=1, norm_flag=True, margin=None,
-                 epsilon=None,
-                 entity_mapping="benchmarks/FB15K237/entity_mapping.json",
-                 entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
-                 entity2id_path="benchmarks/FB15K237/entity2id.txt",
-                 relation_mapping="benchmarks/FB15K237/relation_mapping.json",
-                 relation2id_path="benchmarks/FB15K237/relation2id.txt",
-                 word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
-                 ):
+    def __init__(
+        self,
+        ent_tot,
+        rel_tot,
+        dim=100,
+        p_norm=1,
+        norm_flag=True,
+        margin=None,
+        epsilon=None,
+        entity_mapping="benchmarks/FB15K237/entity_mapping.json",
+        entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
+        entity2id_path="benchmarks/FB15K237/entity2id.txt",
+        relation_mapping="benchmarks/FB15K237/relation_mapping.json",
+        relation2id_path="benchmarks/FB15K237/relation2id.txt",
+        word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
+    ):
         super(TransHW, self).__init__(ent_tot, rel_tot)
 
         self.dim = dim
@@ -74,22 +80,23 @@ class TransHW(Model):
             nn.init.xavier_uniform_(self.norm_vector.weight.data)
         else:
             self.embedding_range = nn.Parameter(
-                torch.Tensor([(self.margin + self.epsilon) / self.dim]), requires_grad=False
+                torch.Tensor([(self.margin + self.epsilon) / self.dim]),
+                requires_grad=False,
             )
             nn.init.uniform_(
                 tensor=self.ent_embeddings.weight.data,
                 a=-self.embedding_range.item(),
-                b=self.embedding_range.item()
+                b=self.embedding_range.item(),
             )
             nn.init.uniform_(
                 tensor=self.rel_embeddings.weight.data,
                 a=-self.embedding_range.item(),
-                b=self.embedding_range.item()
+                b=self.embedding_range.item(),
             )
             nn.init.uniform_(
                 tensor=self.norm_vector.weight.data,
                 a=-self.embedding_range.item(),
-                b=self.embedding_range.item()
+                b=self.embedding_range.item(),
             )
 
         if margin != None:
@@ -113,19 +120,15 @@ class TransHW(Model):
         if entity_vector:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
-                    if self.entity2wiki:
-                        entity_url = (
-                            self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                    entity_url = (
+                        self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                    )
+                    entity_name = os.path.basename(entity_url)
+                    self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
+                        self.word_embeddings.get_entity_vector(
+                            entity_name.replace("_", " ")
                         )
-                        entity_name = os.path.basename(entity_url)
-                        self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                            self.word_embeddings.get_entity_vector(
-                                entity_name.replace("_", " ")
-                            )
-                        ).data
-                    else:
-                        pass
-                # TODO: use mapping file for "label" of each entity
+                    ).data
                 except KeyError:
                     continue
         else:
@@ -216,17 +219,16 @@ class TransHW(Model):
 
         del self.word_embeddings
 
-
     def _calc(self, h, t, r, mode):
         if self.norm_flag:
             h = F.normalize(h, 2, -1)
             r = F.normalize(r, 2, -1)
             t = F.normalize(t, 2, -1)
-        if mode != 'normal':
+        if mode != "normal":
             h = h.view(-1, r.shape[0], h.shape[-1])
             t = t.view(-1, r.shape[0], t.shape[-1])
             r = r.view(-1, r.shape[0], r.shape[-1])
-        if mode == 'head_batch':
+        if mode == "head_batch":
             score = h + (r - t)
         else:
             score = (h + r) - t
@@ -244,10 +246,10 @@ class TransHW(Model):
             return e - torch.sum(e * norm, -1, True) * norm
 
     def forward(self, data):
-        batch_h = data['batch_h']
-        batch_t = data['batch_t']
-        batch_r = data['batch_r']
-        mode = data['mode']
+        batch_h = data["batch_h"]
+        batch_t = data["batch_t"]
+        batch_r = data["batch_r"]
+        mode = data["mode"]
         h = self.ent_embeddings(batch_h)
         t = self.ent_embeddings(batch_t)
         r = self.rel_embeddings(batch_r)
@@ -261,17 +263,19 @@ class TransHW(Model):
             return score
 
     def regularization(self, data):
-        batch_h = data['batch_h']
-        batch_t = data['batch_t']
-        batch_r = data['batch_r']
+        batch_h = data["batch_h"]
+        batch_t = data["batch_t"]
+        batch_r = data["batch_r"]
         h = self.ent_embeddings(batch_h)
         t = self.ent_embeddings(batch_t)
         r = self.rel_embeddings(batch_r)
         r_norm = self.norm_vector(batch_r)
-        regul = (torch.mean(h ** 2) +
-                 torch.mean(t ** 2) +
-                 torch.mean(r ** 2) +
-                 torch.mean(r_norm ** 2)) / 4
+        regul = (
+            torch.mean(h ** 2)
+            + torch.mean(t ** 2)
+            + torch.mean(r ** 2)
+            + torch.mean(r_norm ** 2)
+        ) / 4
         return regul
 
     def predict(self, data):
