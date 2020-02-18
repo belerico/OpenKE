@@ -33,7 +33,7 @@ transw = TransEW(
     p_norm=1,
     norm_flag=True)
 
-transw.initialize_embeddings()
+transw.initialize_embeddings(entity_vector=False)
 
 # define the loss function
 model = NegativeSampling(
