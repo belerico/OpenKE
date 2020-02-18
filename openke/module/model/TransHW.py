@@ -28,6 +28,7 @@ class TransHW(Model):
         norm_flag=True,
         margin=None,
         epsilon=None,
+        laod_mappings=True,
         entity_mapping="benchmarks/FB15K237/entity_mapping.json",
         entity2wiki_path="benchmarks/FB15K237/entity2wikidata.json",
         entity2id_path="benchmarks/FB15K237/entity2id.txt",
@@ -50,27 +51,27 @@ class TransHW(Model):
         self.whitespace_trans = str.maketrans(
             string.punctuation, " " * len(string.punctuation)
         )
-
-        self.entity_mapping = json.load(open(entity_mapping, "rb"))
-        self.relation_mapping = json.load(open(relation_mapping, "rb"))
-        self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
-        self.entity2wiki = self.entity2wiki[~self.entity2wiki["wikipedia"].isnull()]
-        self.entity2id = pd.DataFrame(
-            data=numpy.loadtxt(entity2id_path, delimiter="\t", skiprows=1, dtype=str),
-            columns=["entity", "id"],
-        )
-        self.relation2id = pd.DataFrame(
-            data=numpy.loadtxt(relation2id_path, delimiter="\t", skiprows=1, dtype=str),
-            columns=["relation", "id"],
-        )
-        if word_embeddings_path is None:
-            raise Exception("The path for the word embeddings must be set")
-        if word_embeddings_path.split("/")[-1] == ".txt":
-            self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(
-                word_embeddings_path
+        if laod_mappings:
+            self.entity_mapping = json.load(open(entity_mapping, "rb"))
+            self.relation_mapping = json.load(open(relation_mapping, "rb"))
+            self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
+            self.entity2wiki = self.entity2wiki[~self.entity2wiki["wikipedia"].isnull()]
+            self.entity2id = pd.DataFrame(
+                data=numpy.loadtxt(entity2id_path, delimiter="\t", skiprows=1, dtype=str),
+                columns=["entity", "id"],
             )
-        else:
-            self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
+            self.relation2id = pd.DataFrame(
+                data=numpy.loadtxt(relation2id_path, delimiter="\t", skiprows=1, dtype=str),
+                columns=["relation", "id"],
+            )
+            if word_embeddings_path is None:
+                raise Exception("The path for the word embeddings must be set")
+            if word_embeddings_path.split("/")[-1] == ".txt":
+                self.word_embeddings = gensim.models.KeyedVectors.load_word2vec_format(
+                    word_embeddings_path
+                )
+            else:
+                self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
 
         self.CBP = CompactBilinearPooling(self.dim, self.dim, self.dim)
 

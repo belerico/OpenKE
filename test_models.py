@@ -40,6 +40,7 @@ if __name__ == "__main__":
     transew = TransEW(
         ent_tot=train_dataloader.get_ent_tot(),
         rel_tot=train_dataloader.get_rel_tot(),
+        laod_mappings=False,
         word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
         dim=100,
         p_norm=1,
@@ -59,18 +60,25 @@ if __name__ == "__main__":
     transhw = TransHW(
         ent_tot=train_dataloader.get_ent_tot(),
         rel_tot=train_dataloader.get_rel_tot(),
+        laod_mappings=False,
         word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
         dim=100,
         p_norm=1,
         norm_flag=True,
     )
-
+    models = {
+        "transe": transe,
+        "transew": transew,
+        "transh": transh,
+        "transhw": transhw,
+    }
     # test the model
     test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
     ckpts = os.listdir(args.models_path)
     for ckpt in ckpts:
         filename = os.path.basename(ckpt).split(".")[0]
         model = filename.split("_")
-        eval(model).load_checkpoint(ckpt)
-        tester = Tester(model=eval(model), data_loader=test_dataloader, use_gpu=GPU)
+        models[model].load_checkpoint(ckpt)
+        tester = Tester(model=models[model], data_loader=test_dataloader, use_gpu=GPU)
+        print("* TESTING " + model)
         tester.run_link_prediction(type_constrain=False)
