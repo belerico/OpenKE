@@ -1,6 +1,6 @@
 import openke
 from openke.config import Trainer, Tester
-from openke.module.model import TransEW
+from openke.module.model import TransHW
 from openke.module.loss import MarginLoss
 from openke.module.strategy import NegativeSampling
 from openke.data import TrainDataLoader, TestDataLoader
@@ -22,7 +22,7 @@ def main(epochs, lr, vec, merge):
         neg_rel=0)
 
     # define the model
-    transw = TransEW(
+    transw = TransHW(
         ent_tot=train_dataloader.get_ent_tot(),
         rel_tot=train_dataloader.get_rel_tot(),
         dim=100,
