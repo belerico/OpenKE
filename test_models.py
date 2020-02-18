@@ -3,7 +3,7 @@ import torch
 import openke
 import argparse
 from openke.config import Tester
-from openke.module.model import TransEW
+from openke.module.model import TransE, TransEW, TransH, TransHW
 from openke.data import TrainDataLoader, TestDataLoader
 
 args = argparse.ArgumentParser(description="Test models")
@@ -28,7 +28,35 @@ if __name__ == "__main__":
     )
 
     # define the model
-    transw = TransEW(
+    transe = TransE(
+        ent_tot=train_dataloader.get_ent_tot(),
+        rel_tot=train_dataloader.get_rel_tot(),
+        dim=100,
+        p_norm=1,
+        norm_flag=True,
+    )
+
+    # define the model
+    transew = TransEW(
+        ent_tot=train_dataloader.get_ent_tot(),
+        rel_tot=train_dataloader.get_rel_tot(),
+        word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
+        dim=100,
+        p_norm=1,
+        norm_flag=True,
+    )
+
+    # define the model
+    transh = TransH(
+        ent_tot=train_dataloader.get_ent_tot(),
+        rel_tot=train_dataloader.get_rel_tot(),
+        dim=100,
+        p_norm=1,
+        norm_flag=True,
+    )
+
+    # define the model
+    transhw = TransHW(
         ent_tot=train_dataloader.get_ent_tot(),
         rel_tot=train_dataloader.get_rel_tot(),
         word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
@@ -41,6 +69,8 @@ if __name__ == "__main__":
     test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
     ckpts = os.listdir(args.models_path)
     for ckpt in ckpts:
-        transw.load_checkpoint(ckpt)
-        tester = Tester(model=transw, data_loader=test_dataloader, use_gpu=GPU)
+        filename = os.path.basename(ckpt).split(".")[0]
+        model = filename.split("_")
+        eval(model).load_checkpoint(ckpt)
+        tester = Tester(model=eval(model), data_loader=test_dataloader, use_gpu=GPU)
         tester.run_link_prediction(type_constrain=False)
