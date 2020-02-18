@@ -77,7 +77,7 @@ if __name__ == "__main__":
     ckpts = os.listdir(args.models_path)
     for ckpt in ckpts:
         filename = os.path.basename(ckpt).split(".")[0]
-        model = filename.split("_")
+        model = filename.split("_")[0]
         models[model].load_checkpoint(ckpt)
         tester = Tester(model=models[model], data_loader=test_dataloader, use_gpu=GPU)
         print("* TESTING " + model)
