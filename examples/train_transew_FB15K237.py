@@ -22,7 +22,6 @@ train_dataloader = TrainDataLoader(
 transw = TransEW(
     ent_tot=train_dataloader.get_ent_tot(),
     rel_tot=train_dataloader.get_rel_tot(),
-    word_embeddings_path="openke/embeddings/enwiki_20180420_100d.pkl",
     dim=100,
     p_norm=1,
 
@@ -42,10 +41,10 @@ trainer = Trainer(model=model, data_loader=train_dataloader, train_times=10, alp
                   use_gpu=GPU)
 
 trainer.run()
-transw.save_checkpoint('./checkpoint/transe.ckpt')
+transw.save_checkpoint('./checkpoint/transew.ckpt')
 
 test_dataloader = TestDataLoader("./benchmarks/FB15K237/", "link")
 # test the model
-transw.load_checkpoint('./checkpoint/transe.ckpt')
+transw.load_checkpoint('./checkpoint/transew.ckpt')
 tester = Tester(model=transw, data_loader=test_dataloader, use_gpu=GPU)
 tester.run_link_prediction(type_constrain=False)
