@@ -109,25 +109,27 @@ class TransEW(Model):
         else:
             self.margin_flag = False
 
-    def _initialize_embeddings(self, name, terms, merge, idx):
+    def _initialize_embeddings(self, embeddings_name, terms, merge, idx):
         if len(terms) >= 1:
-            embeddings = getattr(self, name)
+            embeddings = getattr(self, embeddings_name)
             embeddings.weight.data[int(idx)] = torch.Tensor(
                 self.word_embeddings.get_word_vector(terms[0])
             ).data
-            for k in range(1, len(terms)):
-                if merge == "cbp":
+            if merge == "cbp":
+                for k in range(1, len(terms)):
                     embeddings.weight.data[int(idx)] = self.CBP(
                         torch.Tensor(
                             self.word_embeddings.get_word_vector(terms[k])
                         ).data,
                         embeddings.weight.data[int(idx)],
                     )
-                elif merge == "sum" or merge == "mean":
+            elif merge == "sum" or merge == "mean":
+                for k in range(1, len(terms)):
                     embeddings.weight.data[int(idx)] += torch.Tensor(
                         self.word_embeddings.get_word_vector(terms[k])
                     ).data
-                elif merge == "hadamard":
+            elif merge == "hadamard":
+                for k in range(1, len(terms)):
                     embeddings.weight.data[int(idx)] = torch.mul(
                         torch.Tensor(
                             self.word_embeddings.get_word_vector(terms[k])
