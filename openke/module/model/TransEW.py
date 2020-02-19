@@ -118,7 +118,7 @@ class TransEW(Model):
 
             return terms_indices
 
-        count = 0
+        count = []
         if entity_vector:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
@@ -151,67 +151,67 @@ class TransEW(Model):
                         ).data
                     except:
                         print(entity_name)
-                        count += 1
+                        count.append(entity_name)
 
-            print('Missing {}'.format(count))
-        else:
-            for entity, idx in self.entity2id.itertuples(index=False, name=None):
-                try:
+                print('Missing {}'.format(len(set(count))))
+            else:
+                for entity, idx in self.entity2id.itertuples(index=False, name=None):
+                    try:
 
-                    if self.entity2wiki is not None:
-                        entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
-                        entity_name = os.path.basename(entity_url)
-                        terms = list(
-                            set(
-                                entity_name.lower().translate(self.whitespace_trans).split()
+                        if self.entity2wiki is not None:
+                            entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                            entity_name = os.path.basename(entity_url)
+                            terms = list(
+                                set(
+                                    entity_name.lower().translate(self.whitespace_trans).split()
+                                )
                             )
-                        )
 
-                    else:
-                        terms = list(set(
-                            self.entity_mapping[entity]['label'].replace("_", " ").split()))
+                        else:
+                            terms = list(set(
+                                self.entity_mapping[entity]['label'].replace("_", " ").split()))
 
-                    terms_indices = how_many_terms(terms)
-                    if len(terms_indices) >= 1:
-                        self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
+                        terms_indices = how_many_terms(terms)
+                        if len(terms_indices) >= 1:
+                            self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
                                 self.word_embeddings.get_entity_vector(
                                     terms_indices[0]
                                 )
                             ).data
 
-                    for k in range(1, len(terms_indices)):
-                        if merge == "cbp":
-                            self.ent_embeddings.weight.data[int(idx)] = self.CBP(
-                                torch.Tensor(
-                                    self.word_embeddings.get_word_vector(
-                                        terms_indices[k]
-                                    )
-                                ).data,
-                                self.ent_embeddings.weight.data[int(idx)],
-                            )
-                        elif merge == "sum" or merge == "mean":
-                            self.ent_embeddings.weight.data[
-                                int(idx)
-                            ] += torch.Tensor(
-                                self.word_embeddings.get_word_vector(
-                                    terms_indices[k]
+                        for k in range(1, len(terms_indices)):
+                            if merge == "cbp":
+                                self.ent_embeddings.weight.data[int(idx)] = self.CBP(
+                                    torch.Tensor(
+                                        self.word_embeddings.get_word_vector(
+                                            terms_indices[k]
+                                        )
+                                    ).data,
+                                    self.ent_embeddings.weight.data[int(idx)],
                                 )
-                            ).data
-                        elif merge == "hadamard":
-                            self.ent_embeddings.weight.data[int(idx)] = torch.mul(
-                                torch.Tensor(
+                            elif merge == "sum" or merge == "mean":
+                                self.ent_embeddings.weight.data[
+                                    int(idx)
+                                ] += torch.Tensor(
                                     self.word_embeddings.get_word_vector(
                                         terms_indices[k]
                                     )
-                                ).data,
-                                self.ent_embeddings.weight.data[int(idx)],
+                                ).data
+                            elif merge == "hadamard":
+                                self.ent_embeddings.weight.data[int(idx)] = torch.mul(
+                                    torch.Tensor(
+                                        self.word_embeddings.get_word_vector(
+                                            terms_indices[k]
+                                        )
+                                    ).data,
+                                    self.ent_embeddings.weight.data[int(idx)],
+                                )
+                        if merge == "mean":
+                            self.ent_embeddings.weight.data[int(idx)] /= len(
+                                terms_indices
                             )
-                    if merge == "mean":
-                        self.ent_embeddings.weight.data[int(idx)] /= len(
-                            terms_indices
-                        )
-                except KeyError:
-                    continue
+                    except KeyError:
+                        continue
 
         for relation, idx in self.relation2id.itertuples(index=False, name=None):
             terms = list(set(relation.lower().translate(self.whitespace_trans).split()))
