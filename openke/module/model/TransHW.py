@@ -57,11 +57,15 @@ class TransHW(Model):
             self.entity2wiki = pd.read_json(entity2wiki_path, orient="index")
             self.entity2wiki = self.entity2wiki[~self.entity2wiki["wikipedia"].isnull()]
             self.entity2id = pd.DataFrame(
-                data=numpy.loadtxt(entity2id_path, delimiter="\t", skiprows=1, dtype=str),
+                data=numpy.loadtxt(
+                    entity2id_path, delimiter="\t", skiprows=1, dtype=str
+                ),
                 columns=["entity", "id"],
             )
             self.relation2id = pd.DataFrame(
-                data=numpy.loadtxt(relation2id_path, delimiter="\t", skiprows=1, dtype=str),
+                data=numpy.loadtxt(
+                    relation2id_path, delimiter="\t", skiprows=1, dtype=str
+                ),
                 columns=["relation", "id"],
             )
             if word_embeddings_path is None:
@@ -71,7 +75,9 @@ class TransHW(Model):
                     word_embeddings_path
                 )
             else:
-                self.word_embeddings = Wikipedia2Vec.load(open(word_embeddings_path, "rb"))
+                self.word_embeddings = Wikipedia2Vec.load(
+                    open(word_embeddings_path, "rb")
+                )
 
         self.CBP = CompactBilinearPooling(self.dim, self.dim, self.dim)
 
@@ -107,24 +113,59 @@ class TransHW(Model):
         else:
             self.margin_flag = False
 
-    def initialize_embeddings(self, entity_vector=True, merge="sum"):
-        def how_many_terms(terms):
-            terms_indices = []
+    def _initialize_embeddings(self, embeddings_name, terms, merge, idx):
+        if len(terms) >= 1:
+            embeddings = getattr(self, embeddings_name)
+            embeddings.weight.data[int(idx)] = torch.Tensor(
+                self.word_embeddings.get_word_vector(terms[0])
+            ).data
+            if merge == "cbp":
+                for k in range(1, len(terms)):
+                    embeddings.weight.data[int(idx)] = self.CBP(
+                        torch.Tensor(
+                            self.word_embeddings.get_word_vector(terms[k])
+                        ).data,
+                        embeddings.weight.data[int(idx)],
+                    )
+            elif merge == "sum" or merge == "mean":
+                for k in range(1, len(terms)):
+                    embeddings.weight.data[int(idx)] += torch.Tensor(
+                        self.word_embeddings.get_word_vector(terms[k])
+                    ).data
+            elif merge == "hadamard":
+                for k in range(1, len(terms)):
+                    embeddings.weight.data[int(idx)] = torch.mul(
+                        torch.Tensor(
+                            self.word_embeddings.get_word_vector(terms[k])
+                        ).data,
+                        embeddings.weight.data[int(idx)],
+                    )
+            if merge == "mean":
+                embeddings.weight.data[int(idx)] /= len(terms)
 
-            for k, entity_name in enumerate(terms):
+    def _get_existing_terms(self, terms):
+        existing_terms = []
+        for term in terms:
+            try:
+                self.word_embeddings.get_word_vector(term)
+                existing_terms.append(term)
+            except:
                 try:
-                    self.word_embeddings.get_word_vector(entity_name)
-                    terms_indices.append(entity_name)
+                    self.word_embeddings.get_word_vector(string.capwords(term))
+                    existing_terms.append(string.capwords(term))
                 except:
-                    try:
-                        self.word_embeddings.get_word_vector(string.capwords(entity_name))
-                        terms_indices.append(string.capwords(entity_name))
-                    except:
-                        print(entity_name)
+                    continue
+        return existing_terms
 
-            return terms_indices
+    def _extract_terms(self, s):
+        return list(set(s.lower().translate(self.whitespace_trans).split()))
 
-        count = 0
+    def initialize_embeddings(self, entity_vector=True, merge="sum"):
+        self.whitespace_trans = str.maketrans(
+            string.punctuation, " " * len(string.punctuation)
+        )
+        if merge == "cbp":
+            self.CBP = CompactBilinearPooling(self.dim, self.dim, self.dim)
         if entity_vector:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
@@ -133,126 +174,45 @@ class TransHW(Model):
                             self.entity2wiki[["wikipedia"]].loc[entity].values[0]
                         )
                         entity_name = os.path.basename(entity_url).replace("_", " ")
-
-                    elif self.relation_mapping:
-                        entity_name = self.entity_mapping[entity]['label'].replace("_", " ")
-
+                    elif self.entity_mapping is not None:
+                        entity_name = self.entity_mapping[entity]["label"].translate(
+                            self.whitespace_trans
+                        )
+                        entity_name = string.capwords(entity_name)
                     else:
-                        break
+                        raise Exception(
+                            "A mapping is needed from entities to text is needed"
+                        )
                 except KeyError:
                     continue
-
                 try:
                     self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                        self.word_embeddings.get_word_vector(
-                            entity_name
-                        )
+                        self.word_embeddings.get_entity_vector(entity_name)
                     ).data
-                except:
-                    try:
-                        self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                            self.word_embeddings.get_word_vector(
-                                string.capwords(entity_name)
-                            )
-                        ).data
-                    except:
-                        print(entity_name)
-                        count += 1
-
-            print('Missing {}'.format(count))
+                except KeyError:
+                    continue
         else:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
-
                     if self.entity2wiki is not None:
-                        entity_url = self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                        entity_url = (
+                            self.entity2wiki[["wikipedia"]].loc[entity].values[0]
+                        )
                         entity_name = os.path.basename(entity_url)
-                        terms = list(
-                            set(
-                                entity_name.lower().translate(self.whitespace_trans).split()
-                            )
-                        )
-
                     else:
-                        terms = list(set(
-                            self.entity_mapping[entity]['label'].replace("_", " ").split()))
-
-                    terms_indices = how_many_terms(terms)
-                    if len(terms_indices) >= 1:
-                        self.ent_embeddings.weight.data[int(idx)] = torch.Tensor(
-                                self.word_embeddings.get_entity_vector(
-                                    terms_indices[0]
-                                )
-                            ).data
-
-                    for k in range(1, len(terms_indices)):
-                        if merge == "cbp":
-                            self.ent_embeddings.weight.data[int(idx)] = self.CBP(
-                                torch.Tensor(
-                                    self.word_embeddings.get_word_vector(
-                                        terms_indices[k]
-                                    )
-                                ).data,
-                                self.ent_embeddings.weight.data[int(idx)],
-                            )
-                        elif merge == "sum" or merge == "mean":
-                            self.ent_embeddings.weight.data[
-                                int(idx)
-                            ] += torch.Tensor(
-                                self.word_embeddings.get_word_vector(
-                                    terms_indices[k]
-                                )
-                            ).data
-                        elif merge == "hadamard":
-                            self.ent_embeddings.weight.data[int(idx)] = torch.mul(
-                                torch.Tensor(
-                                    self.word_embeddings.get_word_vector(
-                                        terms_indices[k]
-                                    )
-                                ).data,
-                                self.ent_embeddings.weight.data[int(idx)],
-                            )
-                    if merge == "mean":
-                        self.ent_embeddings.weight.data[int(idx)] /= len(
-                            terms_indices
-                        )
+                        entity_name = self.entity_mapping[entity]["label"]
+                    terms = self._extract_terms(entity_name)
+                    existing_terms = self._get_existing_terms(terms)
+                    self._initialize_embeddings(
+                        "ent_embeddings", existing_terms, merge, idx
+                    )
                 except KeyError:
                     continue
 
         for relation, idx in self.relation2id.itertuples(index=False, name=None):
-            terms = list(set(relation.lower().translate(self.whitespace_trans).split()))
-            terms_indices = how_many_terms(terms)
-            if len(terms_indices) >= 1:
-                self.rel_embeddings.weight.data[int(idx)] = torch.Tensor(
-                    self.word_embeddings.get_word_vector(terms_indices[0])
-                ).data
-                for k in range(1, len(terms_indices)):
-                    if merge == "cbp":
-                        self.rel_embeddings.weight.data[int(idx)] = self.CBP(
-                            torch.Tensor(
-                                self.word_embeddings.get_word_vector(
-                                    terms_indices[k]
-                                )
-                            ).data,
-                            self.rel_embeddings.weight.data[int(idx)],
-                        )
-                    elif merge == "sum" or merge == "mean":
-                        self.rel_embeddings.weight.data[int(idx)] += torch.Tensor(
-                            self.word_embeddings.get_word_vector(
-                                terms_indices[k]
-                            )
-                        ).data
-                    elif merge == "hadamard":
-                        self.rel_embeddings.weight.data[int(idx)] = torch.mul(
-                            torch.Tensor(
-                                self.word_embeddings.get_word_vector(
-                                    terms_indices[k]
-                                )
-                            ).data,
-                            self.rel_embeddings.weight.data[int(idx)],
-                        )
-                if merge == "mean":
-                    self.rel_embeddings.weight.data[int(idx)] /= len(terms_indices)
+            terms = self._extract_terms(relation)
+            existing_terms = self._get_existing_terms(terms)
+            self._initialize_embeddings("rel_embeddings", existing_terms, merge, idx)
 
         del self.word_embeddings
 
