@@ -43,9 +43,6 @@ class TransEW(Model):
         self.ent_embeddings = nn.Embedding(self.ent_tot, self.dim)
         self.rel_embeddings = nn.Embedding(self.rel_tot, self.dim)
 
-        self.whitespace_trans = str.maketrans(
-            string.punctuation, " " * len(string.punctuation)
-        )
         if laod_mappings:
             self.entity_mapping = json.load(open(entity_mapping, "rb"))
             self.relation_mapping = json.load(open(relation_mapping, "rb"))
@@ -80,8 +77,6 @@ class TransEW(Model):
                 self.word_embeddings = Wikipedia2Vec.load(
                     open(word_embeddings_path, "rb")
                 )
-
-        self.CBP = CompactBilinearPooling(self.dim, self.dim, self.dim)
 
         if margin == None or epsilon == None:
             nn.init.xavier_uniform_(self.ent_embeddings.weight.data)
@@ -157,6 +152,11 @@ class TransEW(Model):
         return list(set(s.lower().translate(self.whitespace_trans).split()))
 
     def initialize_embeddings(self, entity_vector=True, merge="sum"):
+        self.whitespace_trans = str.maketrans(
+            string.punctuation, " " * len(string.punctuation)
+        )
+        if merge == "cbp":
+            self.CBP = CompactBilinearPooling(self.dim, self.dim, self.dim)
         if entity_vector:
             for entity, idx in self.entity2id.itertuples(index=False, name=None):
                 try:
@@ -165,13 +165,13 @@ class TransEW(Model):
                             self.entity2wiki[["wikipedia"]].loc[entity].values[0]
                         )
                         entity_name = os.path.basename(entity_url).replace("_", " ")
-                    elif self.entity_mapping:
+                    elif self.entity_mapping is not None:
                         entity_name = self.entity_mapping[entity]["label"].translate(
                             self.whitespace_trans
                         )
                         entity_name = string.capwords(entity_name)
                     else:
-                        break
+                        raise Exception("A mapping is needed from entities to text is needed")
                 except KeyError:
                     continue
                 try:
@@ -188,11 +188,9 @@ class TransEW(Model):
                             self.entity2wiki[["wikipedia"]].loc[entity].values[0]
                         )
                         entity_name = os.path.basename(entity_url)
-                        terms = self._extract_terms(entity_name)
                     else:
-                        terms = self._extract_terms(
-                            self.entity_mapping[entity]["label"]
-                        )
+                        entity_name = self.entity_mapping[entity]["label"]
+                    terms = self._extract_terms(entity_name)
                     existing_terms = self._get_existing_terms(terms)
                     self._initialize_embeddings(
                         "ent_embeddings", existing_terms, merge, idx
