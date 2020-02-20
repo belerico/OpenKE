@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .TranslationalModel import TranslationalModel
+from .Model import Model
 
 
-class TransE(TranslationalModel):
+class TransE(Model):
     def __init__(
         self,
         ent_tot,
