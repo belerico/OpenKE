@@ -16,7 +16,8 @@ train_dataloader = TrainDataLoader(
     bern_flag=1,
     filter_flag=1,
     neg_ent=25,
-    neg_rel=0)
+    neg_rel=0,
+)
 
 # define the model
 transw = TransEW(
@@ -24,27 +25,39 @@ transw = TransEW(
     rel_tot=train_dataloader.get_rel_tot(),
     dim=100,
     p_norm=1,
+    norm_flag=True,
+    entity_mapping="benchmarks/WN18RR/mapping.json",
+    entity2wiki_path=None,
+    entity2id_path="benchmarks/WN18RR/entity2id.txt",
+    relation_mapping="benchmarks/WN18RR/relation_mapping.json",
+    relation2id_path="benchmarks/WN18RR/relation2id.txt",
+    word_embeddings_path="embeddings/enwiki_20180420_100d.pkl",
+)
 
-    norm_flag=True)
-
-transw.initialize_embeddings()
+transw.initialize_embeddings(entity_vector=False, merge="mean")
 
 # define the loss function
 model = NegativeSampling(
     model=transw,
     loss=MarginLoss(margin=5.0),
-    batch_size=train_dataloader.get_batch_size()
+    batch_size=train_dataloader.get_batch_size(),
 )
 
 # train the model
-trainer = Trainer(model=model, data_loader=train_dataloader, train_times=10, alpha=1.0,
-                  use_gpu=GPU)
+trainer = Trainer(
+    model=model,
+    data_loader=train_dataloader,
+    train_times=10,
+    alpha=1.0,
+    use_gpu=GPU,
+    opt_method="Adam",
+)
 
 trainer.run()
-transw.save_checkpoint('./checkpoint/transew.ckpt')
+transw.save_checkpoint("./checkpoint/transew.ckpt")
 
 test_dataloader = TestDataLoader("./benchmarks/WN18RR/", "link")
 # test the model
-transw.load_checkpoint('./checkpoint/transew.ckpt')
+transw.load_checkpoint("./checkpoint/transew.ckpt")
 tester = Tester(model=transw, data_loader=test_dataloader, use_gpu=GPU)
 tester.run_link_prediction(type_constrain=False)
